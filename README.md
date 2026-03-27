@@ -1,6 +1,6 @@
 # slides-it
 
-**Describe a presentation. Get the HTML. Ship it. And Say Goodbye to your GUI**
+**Describe a presentation. Get the HTML. Ship it. So long to GUI.**
 
 <p align="center">
   <a href="https://github.com/mengdigao1988/slides-it/releases"><img src="https://img.shields.io/github/v/release/mengdigao1988/slides-it?color=green&label=version" alt="version" /></a>
