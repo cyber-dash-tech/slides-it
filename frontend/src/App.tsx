@@ -5,7 +5,6 @@ import PreviewPanel from './components/PreviewPanel'
 import FileTree from './components/FileTree'
 import WorkspaceSelector from './components/WorkspaceSelector'
 import SettingsModal from './components/SettingsModal'
-import TemplatesModal from './components/TemplatesModal'
 import { getTemplateSkill, getStatus } from './lib/slides-server-api'
 
 type Page = 'workspace' | 'chat' | 'loading'
@@ -19,7 +18,6 @@ export default function App() {
   const [previewFile, setPreviewFile] = useState<string | null>(null)
   const [fileTreeRefreshToken, setFileTreeRefreshToken] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [templatesOpen, setTemplatesOpen] = useState(false)
 
   // On mount: check if the server is already running with an active workspace.
   // If so, skip the workspace selector and go directly to chat.
@@ -80,20 +78,10 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg-app)' }}>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <TemplatesModal
-        open={templatesOpen}
-        activeTemplate={activeTemplate}
-        onClose={() => setTemplatesOpen(false)}
-        onActivate={(name) => {
-          setTemplatesOpen(false)
-          handleTemplateChange(name)
-        }}
-      />
       <TitleBar
         agentStatus="online"
         agentVersion={agentVersion}
         onSettingsOpen={() => setSettingsOpen(true)}
-        onTemplatesManage={() => setTemplatesOpen(true)}
       />
       <div className="flex-1 flex min-h-0">
         <FileTree

@@ -117,6 +117,12 @@ class SettingsRequest(BaseModel):
 
 class TemplateEntry(BaseModel):
     name: str
+    description: str
+    author: str
+    version: str
+    builtin: bool
+    active: bool
+    has_preview: bool
 
 
 class SessionRequest(BaseModel):

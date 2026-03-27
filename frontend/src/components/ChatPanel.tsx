@@ -27,11 +27,12 @@ import {
   type ToolEntry,
   type QuestionRequest,
 } from '../lib/typewriter'
-import { getModels, setModel, listTemplates, getSession, saveSession } from '../lib/slides-server-api'
+import { getModels, setModel, listTemplates, getSession, saveSession, type TemplateEntry } from '../lib/slides-server-api'
 import ThinkingDots from './ThinkingDots'
 import ToolBlock from './ToolBlock'
 import QuestionBlock from './QuestionBlock'
 import AtPopover from './AtPopover'
+import TemplatesModal from './TemplatesModal'
 
 const MarkdownRenderer = lazy(() => import('./MarkdownRenderer'))
 
@@ -73,8 +74,9 @@ export default function ChatPanel({ workspacePath, activeSkill, activeTemplate, 
   const modelDropdownRef = useRef<HTMLDivElement>(null)
 
   // Template pill
-  const [templateList, setTemplateList] = useState<string[]>([])
+  const [templateList, setTemplateList] = useState<TemplateEntry[]>([])
   const [templateOpen, setTemplateOpen] = useState(false)
+  const [templatesModalOpen, setTemplatesModalOpen] = useState(false)
   const templateDropdownRef = useRef<HTMLDivElement>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -124,7 +126,7 @@ export default function ChatPanel({ workspacePath, activeSkill, activeTemplate, 
   // Load template list + close on outside click
   useEffect(() => {
     if (!templateOpen) return
-    listTemplates().then((list) => setTemplateList(list.map((t) => t.name))).catch(() => {})
+    listTemplates().then((list) => setTemplateList(list)).catch(() => {})
   }, [templateOpen])
 
   useEffect(() => {
@@ -779,8 +781,7 @@ export default function ChatPanel({ workspacePath, activeSkill, activeTemplate, 
   )
 
   // ── Template pill ─────────────────────────────────────────────────────────
-  const templatePill = onTemplateChange ? (
-    <div className="relative" ref={templateDropdownRef}>
+  const templatePill = onTemplateChange ? (    <div className="relative" ref={templateDropdownRef}>
       <button
         onClick={() => setTemplateOpen((o) => !o)}
         className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] transition-colors"
@@ -812,29 +813,46 @@ export default function ChatPanel({ workspacePath, activeSkill, activeTemplate, 
             background: 'var(--bg-surface)',
             border: '1px solid var(--border)',
             boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-            minWidth: '160px',
+            minWidth: '180px',
             maxHeight: '200px',
           }}
         >
-          {(templateList.length > 0 ? templateList : [activeTemplate ?? 'default']).map((t) => (
+          {(templateList.length > 0 ? templateList : [{ name: activeTemplate ?? 'default', active: true } as TemplateEntry]).map((t) => (
             <button
-              key={t}
-              onClick={() => handleTemplateSelect(t)}
+              key={t.name}
+              onClick={() => handleTemplateSelect(t.name)}
               className="w-full text-left px-3 py-1.5 text-[11px] transition-colors flex items-center gap-2"
               style={{
-                color: t === activeTemplate ? 'var(--text-primary)' : 'var(--text-secondary)',
-                fontWeight: t === activeTemplate ? 500 : 400,
+                color: t.name === activeTemplate ? 'var(--text-primary)' : 'var(--text-secondary)',
+                fontWeight: t.name === activeTemplate ? 500 : 400,
               }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              {t === activeTemplate
+              {t.name === activeTemplate
                 ? <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--green-dot)' }} />
                 : <span className="w-1.5 h-1.5 flex-shrink-0" />
               }
-              <span className="truncate">{t}</span>
+              <span className="truncate flex-1">{t.name}</span>
             </button>
           ))}
+
+          {/* Divider + manage button */}
+          <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0' }} />
+          <button
+            onClick={() => { setTemplateOpen(false); setTemplatesModalOpen(true) }}
+            className="w-full text-left px-3 py-1.5 text-[11px] transition-colors flex items-center gap-2"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>Manage templates</span>
+          </button>
         </div>
       )}
     </div>
@@ -908,6 +926,17 @@ export default function ChatPanel({ workspacePath, activeSkill, activeTemplate, 
 
   return (
     <div className="flex flex-col flex-1 min-h-0" style={{ background: 'var(--bg-app)' }}>
+
+      {/* Templates modal — managed here so TitleBar doesn't need to know about it */}
+      <TemplatesModal
+        open={templatesModalOpen}
+        activeTemplate={activeTemplate ?? 'default'}
+        onClose={() => setTemplatesModalOpen(false)}
+        onActivate={(name) => {
+          setTemplatesModalOpen(false)
+          if (onTemplateChange) handleTemplateSelect(name)
+        }}
+      />
 
       {messages.length === 0 ? (
         // ── Empty state ──────────────────────────────────────────────────

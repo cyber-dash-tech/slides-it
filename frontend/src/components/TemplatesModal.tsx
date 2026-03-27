@@ -169,10 +169,9 @@ export default function TemplatesModal({
           {/* Template list */}
           <div className="flex-1 overflow-y-auto py-1">
             {templates.map((tpl) => (
-              <button
+              <div
                 key={tpl.name}
-                onClick={() => setSelected(tpl.name)}
-                className="w-full text-left px-4 py-2.5 transition-colors"
+                className="flex items-center"
                 style={{
                   background: selected === tpl.name ? 'var(--bg-user-msg)' : 'transparent',
                   borderLeft: selected === tpl.name ? '2px solid var(--text-primary)' : '2px solid transparent',
@@ -184,28 +183,51 @@ export default function TemplatesModal({
                   (e.currentTarget as HTMLElement).style.background = selected === tpl.name ? 'var(--bg-user-msg)' : 'transparent'
                 }}
               >
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
-                    {tpl.name}
-                  </span>
-                  {tpl.active && (
-                    <span
-                      className="text-[9px] px-1.5 py-0.5 rounded font-medium"
-                      style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-                    >
-                      active
+                {/* Template name row — click to select */}
+                <button
+                  onClick={() => setSelected(tpl.name)}
+                  className="flex-1 text-left px-4 py-2.5 min-w-0"
+                >
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                      {tpl.name}
                     </span>
-                  )}
-                  {tpl.builtin && (
-                    <span className="text-[9px]" style={{ color: 'var(--text-muted)' }} title="Built-in template">
-                      ⊕
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] leading-snug" style={{ color: 'var(--text-muted)' }}>
-                  {tpl.description || 'No description'}
-                </p>
-              </button>
+                    {tpl.active && (
+                      <span
+                        className="text-[9px] px-1.5 py-0.5 rounded font-medium"
+                        style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                      >
+                        active
+                      </span>
+                    )}
+                    {tpl.builtin && (
+                      <span className="text-[9px]" style={{ color: 'var(--text-muted)' }} title="Built-in template">
+                        ⊕
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] leading-snug truncate" style={{ color: 'var(--text-muted)' }}>
+                    {tpl.description || 'No description'}
+                  </p>
+                </button>
+
+                {/* Eye icon — click to preview (without activating) */}
+                <button
+                  onClick={() => setSelected(tpl.name)}
+                  className="flex-shrink-0 w-7 h-7 flex items-center justify-center mr-2 rounded transition-colors"
+                  style={{ color: selected === tpl.name ? 'var(--text-secondary)' : 'var(--text-muted)' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = selected === tpl.name ? 'var(--text-secondary)' : 'var(--text-muted)')}
+                  title="Preview"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+              </div>
             ))}
           </div>
 

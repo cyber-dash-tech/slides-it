@@ -1,6 +1,6 @@
 # slides-it
 
-**Describe a presentation. Get the HTML. Ship it.**
+**Describe a presentation. Get the HTML. Ship it. And Say Goodbye to your GUI**
 
 <p align="center">
   <a href="https://github.com/mengdigao1988/slides-it/releases"><img src="https://img.shields.io/github/v/release/mengdigao1988/slides-it?color=green&label=version" alt="version" /></a>
@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="img/title-page.png" width="780" alt="slides-it — chat panel with AI Q&A on the left, generated slide preview on the right" />
+  <img src="img/welcome-page.png" width="600" alt="slides-it — chat panel with AI Q&A on the left, generated slide preview on the right" />
 </p>
 
 ---
@@ -60,6 +60,10 @@ Pick any folder. Your code project, a `presentations/` folder, anywhere.
 
 slides-it works with all major AI providers. Configure in the **⚙ settings panel** inside the UI, or set an environment variable before launching.
 
+<p align="center">
+  <img src="img/provider-config.png" width="500" alt="slides-it — chat panel with AI Q&A on the left, generated slide preview on the right" />
+</p>
+
 | Provider | Env var |
 |----------|---------|
 | Anthropic (Claude) | `ANTHROPIC_API_KEY` |
@@ -78,6 +82,10 @@ For proxies, local models, or any OpenAI-compatible endpoint — open ⚙ settin
 ---
 
 # What it looks like
+
+<p align="center">
+  <img src="img/title-page.png" width="780" alt="slides-it — chat panel with AI Q&A on the left, generated slide preview on the right" />
+</p>
 
 You type one sentence. The AI asks a few quick questions — audience, slide count, language. Then it writes the whole deck.
 
