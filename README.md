@@ -16,6 +16,16 @@
 
 # Quick Start
 
+## Platform support
+
+| Platform | Status |
+|----------|--------|
+| macOS (Apple Silicon) | Native binary |
+| macOS (Intel) | Use the arm64 binary — runs via Rosetta 2 automatically |
+| Linux x86_64 | Native binary |
+| Windows WSL2 | Use the linux-x86_64 binary. Browser may not open automatically — visit `http://localhost:3000` manually if needed |
+| Windows (native) | Not supported |
+
 ## Install
 
 **1. Install OpenCode** (required — slides-it runs on top of it):
