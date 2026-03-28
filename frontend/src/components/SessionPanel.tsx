@@ -110,6 +110,9 @@ function EmptyHint({ label }: { label: string }) {
 }
 
 export default function SessionPanel({ todos, diffs }: SessionPanelProps) {
+  const safeTodos = Array.isArray(todos) ? todos : []
+  const safeDiffs = Array.isArray(diffs) ? diffs : []
+
   return (
     <div
       className="shrink-0 flex flex-col overflow-hidden"
@@ -119,22 +122,19 @@ export default function SessionPanel({ todos, diffs }: SessionPanelProps) {
         background: 'var(--bg-sidebar)',
       }}
     >
-      {/* scrollable content */}
       <div className="flex-1 overflow-y-auto px-3 py-2.5 flex flex-col gap-3">
-        {/* Todos section */}
         <div>
           <SectionHeader label="Todos" />
-          {todos.length > 0
-            ? todos.map((t) => <TodoItem key={t.id} todo={t} />)
+          {safeTodos.length > 0
+            ? safeTodos.map((t) => <TodoItem key={t.id} todo={t} />)
             : <EmptyHint label="No active tasks" />
           }
         </div>
 
-        {/* Modified Files section */}
         <div>
           <SectionHeader label="Modified Files" />
-          {diffs.length > 0
-            ? diffs.map((d) => <DiffItem key={d.file} diff={d} />)
+          {safeDiffs.length > 0
+            ? safeDiffs.map((d) => <DiffItem key={d.file} diff={d} />)
             : <EmptyHint label="No changes yet" />
           }
         </div>

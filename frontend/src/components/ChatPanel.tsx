@@ -236,8 +236,8 @@ export default function ChatPanel({ workspacePath, activeSkill, activeTemplate, 
         sessionIdRef.current = s.id
 
         // Load initial todos and diffs for this session
-        getTodos(s.id).then((t) => onTodosChange?.(t)).catch(() => {})
-        getSessionDiff(s.id).then((d) => onDiffsChange?.(d)).catch(() => {})
+        getTodos(s.id).then((t) => onTodosChange?.(Array.isArray(t) ? t : [])).catch(() => {})
+        getSessionDiff(s.id).then((d) => onDiffsChange?.(Array.isArray(d) ? d : [])).catch(() => {})
 
         if (savedMessages.length > 0) {
           setMessages(savedMessages)
@@ -316,13 +316,13 @@ export default function ChatPanel({ workspacePath, activeSkill, activeTemplate, 
     }
 
     if (type === 'todo.updated') {
-      const todos = (properties.todos ?? []) as Todo[]
-      onTodosChange?.(todos)
+      const todos = properties.todos
+      onTodosChange?.(Array.isArray(todos) ? todos as Todo[] : [])
     }
 
     if (type === 'session.diff') {
-      const diff = (properties.diff ?? []) as FileDiff[]
-      onDiffsChange?.(diff)
+      const diff = properties.diff
+      onDiffsChange?.(Array.isArray(diff) ? diff as FileDiff[] : [])
     }
 
     if (type === 'message.updated') {

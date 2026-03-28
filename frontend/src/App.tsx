@@ -6,6 +6,7 @@ import FileTree from './components/FileTree'
 import WorkspaceSelector from './components/WorkspaceSelector'
 import SettingsModal from './components/SettingsModal'
 import SessionPanel from './components/SessionPanel'
+import ErrorBoundary from './components/ErrorBoundary'
 import { getTemplateSkill, getStatus } from './lib/slides-server-api'
 import type { Todo, FileDiff } from './lib/opencode-api'
 
@@ -80,6 +81,7 @@ export default function App() {
   }
 
   return (
+    <ErrorBoundary>
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg-app)' }}>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <TitleBar
@@ -125,5 +127,6 @@ export default function App() {
         <PreviewPanel htmlFile={previewFile} />
       </div>
     </div>
+    </ErrorBoundary>
   )
 }
