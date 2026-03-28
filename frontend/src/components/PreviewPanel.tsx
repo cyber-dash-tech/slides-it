@@ -1,41 +1,62 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 interface PreviewPanelProps {
   htmlFile: string | null
 }
 
+const OPENCODE = 'http://localhost:4096'
+
 export default function PreviewPanel({ htmlFile }: PreviewPanelProps) {
-  const iframeRef = useRef<HTMLIFrameElement>(null)
   const [lastFile, setLastFile] = useState<string | null>(null)
-  const [refreshToken, setRefreshToken] = useState(0)
   const [iframeSrc, setIframeSrc] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState(true)
+  const prevBlobUrl = useRef<string | null>(null)
 
-  useEffect(() => {
-    if (htmlFile && htmlFile !== lastFile) {
-      setLastFile(htmlFile)
-      setCollapsed(false)
-      setRefreshToken((t) => t + 1)
+  // ── Core fetch function — shared by effect and Refresh button ────────────
+  const fetchContent = useCallback(async (path: string) => {
+    try {
+      const res = await fetch(`${OPENCODE}/file/content?path=${encodeURIComponent(path)}`)
+      if (!res.ok) return
+      const data = await res.json()
+      const content: string = data.content ?? data.text ?? ''
+      if (!content) return
+      const blob = new Blob([content], { type: 'text/html' })
+      const url = URL.createObjectURL(blob)
+      // Revoke previous blob URL to avoid memory leaks
+      if (prevBlobUrl.current) URL.revokeObjectURL(prevBlobUrl.current)
+      prevBlobUrl.current = url
+      setIframeSrc(url)
+    } catch {
+      // silently ignore network errors
     }
+  }, [])
+
+  // ── Sync htmlFile prop → lastFile state ──────────────────────────────────
+  // Only update when the file actually changes; also expand the panel.
+  useEffect(() => {
+    if (!htmlFile || htmlFile === lastFile) return
+    setLastFile(htmlFile)
+    setCollapsed(false)
   }, [htmlFile, lastFile])
 
+  // ── Fetch content whenever lastFile changes ───────────────────────────────
+  // Runs independently of collapsed — content is always ready when panel opens.
   useEffect(() => {
     if (!lastFile) return
-    fetch(`http://localhost:4096/file/content?path=${encodeURIComponent(lastFile)}`)
-      .then((r) => r.json())
-      .then((data) => {
-        const content: string = data.content ?? data.text ?? ''
-        const blob = new Blob([content], { type: 'text/html' })
-        const url = URL.createObjectURL(blob)
-        setIframeSrc((prev) => { if (prev) URL.revokeObjectURL(prev); return url })
-      })
-      .catch(() => {})
-  }, [lastFile, refreshToken])
+    fetchContent(lastFile)
+  }, [lastFile, fetchContent])
+
+  // ── Cleanup blob URL on unmount ───────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (prevBlobUrl.current) URL.revokeObjectURL(prevBlobUrl.current)
+    }
+  }, [])
 
   async function handleDownload() {
     if (!lastFile) return
     try {
-      const res = await fetch(`http://localhost:4096/file/content?path=${encodeURIComponent(lastFile)}`)
+      const res = await fetch(`${OPENCODE}/file/content?path=${encodeURIComponent(lastFile)}`)
       const data = await res.json()
       const content: string = data.content ?? data.text ?? ''
       const blob = new Blob([content], { type: 'text/html' })
@@ -45,10 +66,12 @@ export default function PreviewPanel({ htmlFile }: PreviewPanelProps) {
       a.download = lastFile.split('/').pop() ?? 'presentation.html'
       a.click()
       URL.revokeObjectURL(url)
-    } catch (e) { console.error('Download failed:', e) }
+    } catch (e) {
+      console.error('Download failed:', e)
+    }
   }
 
-  // ── Collapsed: 32px strip ──────────────────────────────────────────────
+  // ── Collapsed strip ───────────────────────────────────────────────────────
   if (collapsed) {
     return (
       <div
@@ -79,7 +102,7 @@ export default function PreviewPanel({ htmlFile }: PreviewPanelProps) {
     )
   }
 
-  // ── Expanded ───────────────────────────────────────────────────────────
+  // ── Expanded ──────────────────────────────────────────────────────────────
   return (
     <div
       className="flex flex-col min-h-0 flex-shrink-0"
@@ -114,7 +137,7 @@ export default function PreviewPanel({ htmlFile }: PreviewPanelProps) {
         {lastFile && (
           <>
             <button
-              onClick={() => setRefreshToken((t) => t + 1)}
+              onClick={() => fetchContent(lastFile)}
               className="text-xs px-1.5 py-1 rounded transition-colors"
               style={{ color: 'var(--text-muted)' }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
@@ -141,19 +164,23 @@ export default function PreviewPanel({ htmlFile }: PreviewPanelProps) {
       </div>
 
       {/* Preview */}
-      {!lastFile ? (
+      {!iframeSrc ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Preview will appear here</p>
-            <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
-              Chat with the AI to generate slides
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {lastFile ? 'Loading preview…' : 'Preview will appear here'}
             </p>
+            {!lastFile && (
+              <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
+                Chat with the AI to generate slides
+              </p>
+            )}
           </div>
         </div>
       ) : (
         <iframe
-          ref={iframeRef}
-          src={iframeSrc ?? undefined}
+          key={lastFile}
+          src={iframeSrc}
           className="flex-1 w-full border-0"
           title="Slide preview"
           sandbox="allow-scripts"
