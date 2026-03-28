@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { getSettings, saveSettings, getStatus } from '../lib/slides-server-api'
+import { getSettings, saveSettings } from '../lib/slides-server-api'
 
 interface SettingsModalProps {
-  open: boolean
   onClose: () => void
+  onSettingsSaved?: () => void
 }
 
 const PROVIDERS = [
@@ -16,10 +16,10 @@ const PROVIDERS = [
 
 const NATIVE_PROVIDERS = new Set(['anthropic', 'openai', 'openrouter', 'deepseek', ''])
 
-export default function SettingsModal({ open, onClose }: SettingsModalProps) {
+export default function SettingsModal({ onClose, onSettingsSaved }: SettingsModalProps) {
   const [providerID, setProviderID]     = useState('anthropic')
-  const [apiKey, setApiKey]             = useState('')        // what user types (may be empty = no change)
-  const [apiKeyMasked, setApiKeyMasked] = useState('')        // loaded from server
+  const [apiKey, setApiKey]             = useState('')
+  const [apiKeyMasked, setApiKeyMasked] = useState('')
   const [baseURL, setBaseURL]           = useState('')
   const [customModel, setCustomModel]   = useState('')
   const [showKey, setShowKey]           = useState(false)
@@ -29,27 +29,22 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [success, setSuccess]           = useState(false)
   const overlayRef = useRef<HTMLDivElement>(null)
 
-  // Load current settings when modal opens
+  // Load current settings on mount
   useEffect(() => {
-    if (!open) return
-    setError(''); setSuccess(false); setApiKey(''); setShowKey(false)
     getSettings().then((s) => {
       setProviderID(s.providerID || 'anthropic')
       setApiKeyMasked(s.apiKeyMasked)
       setBaseURL(s.baseURL)
       setCustomModel(s.customModel)
     }).catch(() => {})
-  }, [open])
+  }, [])
 
   // Close on Escape
   useEffect(() => {
-    if (!open) return
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [open, onClose])
-
-  if (!open) return null
+  }, [onClose])
 
   const isCustomProvider = !NATIVE_PROVIDERS.has(providerID)
 
@@ -64,60 +59,54 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
     }
     setSaving(true); setError('')
     try {
-      const result = await saveSettings({ providerID, apiKey, baseURL, customModel, clearKey: false })
+      const result = await saveSettings({ providerID, apiKey, baseURL, customModel })
       if (result.status === 'restarting') {
-        // Server is restarting opencode — poll until it's healthy, then close
         setSaving(false)
         setRestarting(true)
         await pollUntilReady(8000)
         setRestarting(false)
-        setSuccess(true)
-        setTimeout(() => { setSuccess(false); onClose() }, 800)
-      } else {
-        setSuccess(true)
-        setTimeout(() => { setSuccess(false); onClose() }, 800)
       }
+      setSuccess(true)
+      onSettingsSaved?.()
+      // Reload the page so ChatPanel re-initialises its SSE connection and session
+      // against the newly restarted opencode process. Short delay to show "Saved ✓".
+      setTimeout(() => window.location.reload(), 800)
     } catch (e) {
       setError((e as Error).message)
-    } finally {
       setSaving(false)
+      setRestarting(false)
     }
   }
 
-  /** Poll /api/status until opencode is healthy or timeout is reached. */
+  /** Poll /api/status until opencode is healthy or throw on timeout. */
   async function pollUntilReady(timeoutMs: number): Promise<void> {
     const deadline = Date.now() + timeoutMs
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 600))
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 1500)
       try {
-        const s = await getStatus()
-        if (s.ready) return
-      } catch { /* not up yet */ }
+        const res = await fetch('/api/status', { signal: controller.signal })
+        clearTimeout(timer)
+        if (res.ok) {
+          const s = await res.json()
+          if (s.ready) return
+        }
+      } catch {
+        clearTimeout(timer)
+        // timed out or failed — keep polling
+      }
     }
-  }
-
-  async function handleClearKey() {
-    setSaving(true); setError('')
-    try {
-      await saveSettings({ providerID, apiKey: '', baseURL, customModel, clearKey: true })
-      setApiKeyMasked('')
-      setApiKey('')
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setSaving(false)
-    }
+    throw new Error('AI engine did not restart in time. Please try again.')
   }
 
   return (
-    /* Overlay */
     <div
       ref={overlayRef}
       className="fixed inset-0 z-50 flex items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(2px)' }}
       onMouseDown={(e) => { if (e.target === overlayRef.current) onClose() }}
     >
-      {/* Card */}
       <div
         className="w-full max-w-md rounded-2xl overflow-hidden flex flex-col"
         style={{
@@ -177,62 +166,43 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
             <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
               API Key
             </label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <input
-                  type={showKey ? 'text' : 'password'}
-                  value={apiKey}
-                  placeholder={apiKeyMasked || 'Leave empty to use opencode free tier'}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2 pr-9 text-sm outline-none"
-                  style={{
-                    background: 'var(--bg-app)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text-primary)',
-                    fontFamily: 'inherit',
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowKey((v) => !v)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 transition-colors"
-                  style={{ color: 'var(--text-muted)' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
-                  tabIndex={-1}
-                >
-                  {showKey ? (
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              {apiKeyMasked && (
-                <button
-                  onClick={handleClearKey}
-                  disabled={saving}
-                  className="px-2.5 py-2 rounded-lg text-xs transition-colors flex-shrink-0 disabled:opacity-40"
-                  style={{
-                    color: 'var(--error)',
-                    border: '1px solid var(--error-border)',
-                    background: 'var(--error-bg)',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-                  title="Remove saved API key"
-                >
-                  Clear
-                </button>
-              )}
+            <div className="relative">
+              <input
+                type={showKey ? 'text' : 'password'}
+                value={apiKey}
+                placeholder={apiKeyMasked || 'Leave empty to use opencode free tier'}
+                onChange={(e) => setApiKey(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 pr-9 text-sm outline-none"
+                style={{
+                  background: 'var(--bg-app)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                  fontFamily: 'inherit',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                tabIndex={-1}
+              >
+                {showKey ? (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                  </svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
             </div>
             <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
               Leave empty to use opencode free tier (opencode/big-pickle etc.)

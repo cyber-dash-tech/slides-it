@@ -110,7 +110,7 @@ export default function WorkspaceSelector({ onReady }: WorkspaceSelectorProps) {
       className="h-screen flex flex-col items-center justify-center"
       style={{ background: 'var(--bg-app)' }}
     >
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
       <div
         className="w-full max-w-xl flex flex-col rounded-2xl overflow-hidden"
         style={{

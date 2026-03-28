@@ -49,6 +49,7 @@ interface ChatPanelProps {
   onHtmlGenerated: (path: string) => void
   onTodosChange?: (todos: Todo[]) => void
   onDiffsChange?: (diffs: FileDiff[]) => void
+  modelRefreshToken?: number
 }
 
 interface AtReference {
@@ -56,7 +57,7 @@ interface AtReference {
   name: string
 }
 
-export default function ChatPanel({ workspacePath, activeSkill, activeTemplate, onTemplateChange, onHtmlGenerated, onTodosChange, onDiffsChange }: ChatPanelProps) {
+export default function ChatPanel({ workspacePath, activeSkill, activeTemplate, onTemplateChange, onHtmlGenerated, onTodosChange, onDiffsChange, modelRefreshToken }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [sending, setSending] = useState(false)
   const [input, setInput] = useState('')
@@ -76,6 +77,7 @@ export default function ChatPanel({ workspacePath, activeSkill, activeTemplate, 
   const [currentModel, setCurrentModel] = useState('')
   const [models, setModels] = useState<string[]>([])
   const [modelOpen, setModelOpen] = useState(false)
+  const [modelSwitchError, setModelSwitchError] = useState('')
   const modelDropdownRef = useRef<HTMLDivElement>(null)
 
   // Template pill
@@ -111,7 +113,7 @@ export default function ChatPanel({ workspacePath, activeSkill, activeTemplate, 
       setModels(res.models)
       setCurrentModel(res.current)
     }).catch(() => {})
-  }, [])
+  }, [modelRefreshToken])
 
   // Keep refs in sync so SSE callbacks always read the latest values
   useEffect(() => { sessionIdRef.current = sessionId }, [sessionId])
@@ -145,9 +147,17 @@ export default function ChatPanel({ workspacePath, activeSkill, activeTemplate, 
   }, [templateOpen])
 
   async function handleModelSelect(modelID: string) {
+    const prev = currentModel
     setCurrentModel(modelID)
     setModelOpen(false)
-    await setModel(modelID).catch(() => {})
+    try {
+      await setModel(modelID)
+    } catch (e) {
+      setCurrentModel(prev)
+      const msg = (e as Error).message || 'Failed to switch model'
+      setModelSwitchError(msg)
+      setTimeout(() => setModelSwitchError(''), 3000)
+    }
   }
 
   async function handleTemplateSelect(name: string) {
@@ -995,8 +1005,26 @@ export default function ChatPanel({ workspacePath, activeSkill, activeTemplate, 
     </div>
   )
 
+  // ── Model switch error toast ─────────────────────────────────────────────
+  const modelErrorToast = modelSwitchError ? (
+    <div
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-xs font-medium shadow-lg pointer-events-none"
+      style={{
+        background: 'var(--error-bg)',
+        border: '1px solid var(--error-border)',
+        color: 'var(--error)',
+        maxWidth: '360px',
+        textAlign: 'center',
+      }}
+    >
+      {modelSwitchError}
+    </div>
+  ) : null
+
   return (
     <div className="flex flex-col flex-1 min-h-0" style={{ background: 'var(--bg-app)' }}>
+
+      {modelErrorToast}
 
       {/* Templates modal — managed here so TitleBar doesn't need to know about it */}
       <TemplatesModal

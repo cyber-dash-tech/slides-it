@@ -121,7 +121,12 @@ export function sendPrompt(
     method: 'POST',
     body: JSON.stringify({
       parts,
-      ...(modelID ? { modelID } : {}),
+      ...(modelID && modelID.includes('/') ? {
+        model: {
+          providerID: modelID.split('/')[0],
+          modelID: modelID.slice(modelID.indexOf('/') + 1),
+        },
+      } : {}),
       ...(agent ? { agent } : {}),
       ...(system ? { system } : {}),
     }),

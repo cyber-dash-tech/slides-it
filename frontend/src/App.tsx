@@ -21,6 +21,7 @@ export default function App() {
   const [previewFile, setPreviewFile] = useState<string | null>(null)
   const [fileTreeRefreshToken, setFileTreeRefreshToken] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [modelRefreshToken, setModelRefreshToken] = useState(0)
   const [todos, setTodos] = useState<Todo[]>([])
   const [diffs, setDiffs] = useState<FileDiff[]>([])
 
@@ -89,7 +90,12 @@ export default function App() {
   return (
     <ErrorBoundary>
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg-app)' }}>
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {settingsOpen && (
+        <SettingsModal
+          onClose={() => setSettingsOpen(false)}
+          onSettingsSaved={() => setModelRefreshToken((t) => t + 1)}
+        />
+      )}
       <TitleBar
         agentStatus="online"
         agentVersion={agentVersion}
@@ -117,6 +123,7 @@ export default function App() {
             activeSkill={activeSkill}
             activeTemplate={activeTemplate}
             onTemplateChange={handleTemplateChange}
+            modelRefreshToken={modelRefreshToken}
             onHtmlGenerated={(path) => {
               setPreviewFile(toRelative(path))
               setFileTreeRefreshToken((t) => t + 1)

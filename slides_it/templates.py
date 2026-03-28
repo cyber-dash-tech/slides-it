@@ -140,11 +140,10 @@ class TemplateManager:
         self._save_config(config)
 
     def get_settings(self) -> dict[str, str]:
-        """Return provider settings from slides-it config."""
+        """Return provider settings from slides-it config (legacy, baseURL/customModel only)."""
         cfg = self._load_config()
         return {
             "providerID":  cfg.get("providerID", ""),
-            "apiKey":      cfg.get("apiKey", ""),
             "baseURL":     cfg.get("baseURL", ""),
             "customModel": cfg.get("customModel", ""),
         }
@@ -152,24 +151,25 @@ class TemplateManager:
     def save_settings(
         self,
         provider_id: str,
-        api_key: str,
         base_url: str,
         custom_model: str,
     ) -> None:
         """
-        Persist provider settings to slides-it config.
+        Persist non-secret provider settings to slides-it config.
+
+        API key is no longer stored here — it lives in opencode.jsonc only.
 
         Args:
             provider_id:  e.g. "anthropic", "openai", "custom"
-            api_key:      raw key (stored locally; never sent to opencode API)
             base_url:     OpenAI-compatible base URL (may be empty)
             custom_model: model ID to register for custom providers (may be empty)
         """
         cfg = self._load_config()
         cfg["providerID"]  = provider_id
-        cfg["apiKey"]      = api_key
         cfg["baseURL"]     = base_url
         cfg["customModel"] = custom_model
+        # Remove legacy apiKey if present
+        cfg.pop("apiKey", None)
         self._save_config(cfg)
 
     def get_skill_md(self, name: str | None = None) -> str:

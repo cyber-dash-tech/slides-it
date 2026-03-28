@@ -318,6 +318,27 @@ def template_activate(
 
 
 # ---------------------------------------------------------------------------
+# slides-it restart
+# ---------------------------------------------------------------------------
+
+@app.command("restart")
+def restart() -> None:
+    """Restart the slides-it server and opencode process."""
+    stop()
+    time.sleep(0.5)
+
+    # Re-launch slides-it in a new process group so it outlives this process
+    executable = sys.argv[0]
+    subprocess.Popen(
+        [executable],
+        start_new_session=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    typer.echo("slides-it restarting…")
+
+
+# ---------------------------------------------------------------------------
 # slides-it stop
 # ---------------------------------------------------------------------------
 

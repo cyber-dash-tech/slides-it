@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import threading
 import pathlib
 import signal
 import subprocess
@@ -24,7 +25,6 @@ from slides_it.templates import TemplateManager
 # ---------------------------------------------------------------------------
 
 OPENCODE_PORT = 4096
-_OPENCODE_AUTH = pathlib.Path.home() / ".local" / "share" / "opencode" / "auth.json"
 
 # Known providers that ship native support in opencode (no custom npm package needed)
 _NATIVE_PROVIDERS = {"anthropic", "openai", "opencode", "openrouter", "deepseek", ""}
@@ -113,7 +113,6 @@ class SettingsRequest(BaseModel):
     apiKey: str         # empty string = keep existing
     baseURL: str
     customModel: str
-    clearKey: bool = False
 
 
 class TemplateEntry(BaseModel):
@@ -239,10 +238,6 @@ def start_workspace(req: StartRequest) -> dict[str, str]:
 
     # Create .slides-it directory in workspace (for future session persistence etc.)
     (directory / ".slides-it").mkdir(exist_ok=True)
-
-    # Write provider config into workspace opencode.json
-    settings = TemplateManager().get_settings()
-    _write_opencode_json(str(directory), settings["providerID"], settings["baseURL"], settings["customModel"])
 
     # If opencode is already healthy, just update workspace and reuse it
     if _is_opencode_healthy():
@@ -552,67 +547,86 @@ def activate_template(name: str) -> dict[str, str]:
 
 @app.get("/api/settings", response_model=SettingsResponse)
 def get_settings() -> SettingsResponse:
-    """Return current provider settings (API key is masked)."""
-    s = TemplateManager().get_settings()
-    key = s["apiKey"]
-    if len(key) > 12:
-        masked = key[:8] + "..." + key[-4:]
-    elif key:
-        masked = "*" * len(key)
+    """Return current provider settings read from workspace opencode.jsonc (API key is masked)."""
+    provider_id = ""
+    api_key = ""
+    base_url = ""
+    custom_model = ""
+
+    if _workspace_dir:
+        cfg = _read_opencode_jsonc(_workspace_dir)
+        providers = cfg.get("provider", {})
+        if providers:
+            # Take the first (and normally only) provider block written by slides-it
+            provider_id = next(iter(providers))
+            opts = providers[provider_id].get("options", {})
+            api_key = opts.get("apiKey", "")
+            base_url = opts.get("baseURL", "")
+            # custom model: look for first key under "models"
+            models_block = providers[provider_id].get("models", {})
+            custom_model = next(iter(models_block), "")
+
+    if len(api_key) > 12:
+        masked = api_key[:8] + "..." + api_key[-4:]
+    elif api_key:
+        masked = "*" * len(api_key)
     else:
         masked = ""
+
     return SettingsResponse(
-        providerID=s["providerID"],
+        providerID=provider_id,
         apiKeyMasked=masked,
-        baseURL=s["baseURL"],
-        customModel=s["customModel"],
+        baseURL=base_url,
+        customModel=custom_model,
     )
 
 
 @app.put("/api/settings")
 def save_settings(req: SettingsRequest) -> dict[str, str]:
     """
-    Persist provider settings and restart the OpenCode process so the new
-    provider / API key takes effect immediately without requiring the user
-    to manually switch workspaces.
+    Persist provider settings to workspace opencode.jsonc and restart OpenCode.
 
-    - Writes API key to opencode's auth.json.
-    - Writes baseURL / custom provider config to workspace opencode.json (if workspace active).
-    - Restarts the running opencode process (if one is managed by us) so the new
-      config is picked up on the very next message.
-    - clearKey=True removes the stored key (falls back to opencode free tier).
+    - Reads the existing apiKey from opencode.jsonc if req.apiKey is empty (no change).
+    - Writes the provider block (apiKey + optional baseURL) to opencode.jsonc.
+    - No apiKey → removes the provider block so opencode falls back to free tier.
+    - Restarts the managed opencode process so the new config takes effect immediately.
     """
-    tm = TemplateManager()
-    existing = tm.get_settings()
+    if not _workspace_dir:
+        raise HTTPException(status_code=400, detail="No active workspace")
 
-    # Resolve final key
-    if req.clearKey:
-        final_key = ""
-    elif req.apiKey:
-        final_key = req.apiKey
-    else:
-        final_key = existing["apiKey"]   # keep existing if not changed
+    # Resolve final key: keep existing if user left the field blank
+    final_key = req.apiKey
+    if not final_key:
+        existing_cfg = _read_opencode_jsonc(_workspace_dir)
+        providers = existing_cfg.get("provider", {})
+        if req.providerID and req.providerID in providers:
+            final_key = providers[req.providerID].get("options", {}).get("apiKey", "")
+        elif providers:
+            # If provider changed, don't carry over old key
+            final_key = ""
 
-    tm.save_settings(req.providerID, final_key, req.baseURL, req.customModel)
-    _write_auth_json(req.providerID or "anthropic", final_key)
-    if _workspace_dir:
-        _write_opencode_json(_workspace_dir, req.providerID, req.baseURL, req.customModel)
+    _write_opencode_jsonc(_workspace_dir, req.providerID, final_key, req.baseURL, req.customModel)
 
-    # Restart opencode so the new auth / provider config takes effect immediately.
-    # Only restart if we're currently managing an opencode process.
-    restarted = False
+    # Restart opencode in a background thread so this request returns immediately.
+    # The frontend polls /api/status until ready=true.
     global _opencode_proc
-    if _opencode_proc is not None and _workspace_dir:
-        _stop_opencode()
-        _opencode_proc = subprocess.Popen(
-            ["opencode", "serve", "--port", str(OPENCODE_PORT)],
-            cwd=_workspace_dir,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        restarted = True
+    if _opencode_proc is not None:
+        workspace = _workspace_dir  # capture for thread closure
 
-    return {"status": "restarting" if restarted else "saved"}
+        def _restart() -> None:
+            global _opencode_proc
+            _stop_opencode()
+            _opencode_proc = subprocess.Popen(
+                ["opencode", "serve", "--port", str(OPENCODE_PORT)],
+                cwd=workspace,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+        threading.Thread(target=_restart, daemon=True).start()
+        return {"status": "restarting"}
+
+    return {"status": "saved"}
 
 
 @app.get("/api/file-base64")
@@ -740,80 +754,111 @@ def _is_opencode_healthy() -> bool:
         return False
 
 
-def _write_auth_json(provider_id: str, api_key: str) -> None:
+def _read_opencode_jsonc(workspace: str) -> dict:
     """
-    Write or remove the API key in opencode's global auth.json.
+    Read and parse <workspace>/opencode.jsonc, stripping // line comments.
 
-    IMPORTANT — call only from PUT /api/settings (explicit user save).
-    Never call this from startup, /api/start, or any automatic path.
-    opencode's auth.json is the user's global credential store; slides-it
-    must not overwrite it without explicit user intent.
-
-    Args:
-        provider_id: opencode provider identifier (e.g. "anthropic", "openai").
-        api_key:     raw key string; empty string removes the entry.
+    Returns an empty dict if the file does not exist or cannot be parsed.
     """
-    auth: dict = {}
-    if _OPENCODE_AUTH.exists():
+    import re
+    cfg_path = pathlib.Path(workspace) / "opencode.jsonc"
+    if not cfg_path.exists():
+        # Also try .json fallback
+        cfg_path = pathlib.Path(workspace) / "opencode.json"
+    if not cfg_path.exists():
+        return {}
+    try:
+        text = cfg_path.read_text(encoding="utf-8")
         try:
-            auth = json.loads(_OPENCODE_AUTH.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-
-    if api_key:
-        auth[provider_id] = {"type": "api", "key": api_key}
-    elif provider_id in auth:
-        del auth[provider_id]
-
-    _OPENCODE_AUTH.parent.mkdir(parents=True, exist_ok=True)
-    _OPENCODE_AUTH.write_text(json.dumps(auth, indent=2), encoding="utf-8")
+            return json.loads(text)
+        except json.JSONDecodeError:
+            # Strip only lines whose first non-whitespace chars are "//"
+            stripped = re.sub(r"(?m)^\s*//.*$", "", text)
+            return json.loads(stripped)
+    except Exception:
+        return {}
 
 
-def _write_opencode_json(workspace: str, provider_id: str, base_url: str, custom_model: str) -> None:
+def _write_opencode_jsonc(
+    workspace: str,
+    provider_id: str,
+    api_key: str,
+    base_url: str,
+    custom_model: str,
+) -> None:
     """
-    Merge provider config into <workspace>/opencode.json.
+    Write provider config into <workspace>/opencode.jsonc.
 
-    Only writes a provider block when:
-    - provider is not a natively-supported one, OR
-    - a custom baseURL is supplied.
+    Reads the existing file (preserving all other keys), then:
+    - Removes any previously written provider blocks (those with a "slides-it" marker
+      or simply the one matching provider_id).
+    - If api_key is non-empty, writes a fresh provider block for provider_id.
+    - If api_key is empty, removes the provider block so opencode uses free tier.
 
-    Existing keys in opencode.json are preserved.
+    Native providers (anthropic, openai, openrouter, deepseek) only need
+    options.apiKey (and optionally options.baseURL).
+
+    Custom / OpenAI-compatible providers also need npm + name fields so opencode
+    can load the correct SDK adapter.
+
+    Writes valid JSON (no comments) so the file remains machine-writable while
+    still being usable by opencode (which accepts both .json and .jsonc).
     """
-    cfg_path = pathlib.Path(workspace) / "opencode.json"
+    import re
+    cfg_path = pathlib.Path(workspace) / "opencode.jsonc"
+
+    # Parse existing file (comment-stripping)
     cfg: dict = {}
     if cfg_path.exists():
         try:
             text = cfg_path.read_text(encoding="utf-8")
-            # Try standard JSON first (slides-it always writes valid JSON).
-            # Fall back to line-by-line comment stripping only if that fails,
-            # to handle opencode.json files that users may have annotated with
-            # // comments.  Strip only lines whose first non-whitespace chars
-            # are "//" so that URLs like "https://..." are never touched.
             try:
                 cfg = json.loads(text)
             except json.JSONDecodeError:
-                import re
                 stripped = re.sub(r"(?m)^\s*//.*$", "", text)
                 cfg = json.loads(stripped)
         except Exception:
             cfg = {}
 
-    cfg["$schema"] = "https://opencode.ai/config.json"
+    cfg.setdefault("$schema", "https://opencode.ai/config.json")
 
-    is_custom = provider_id not in _NATIVE_PROVIDERS or base_url
-    if is_custom and provider_id:
-        provider_block: dict = {
-            "npm": "@ai-sdk/openai-compatible",
-            "name": provider_id,
-            "options": {"baseURL": base_url},
-        }
-        if custom_model:
-            provider_block["models"] = {custom_model: {"name": custom_model}}
-        cfg.setdefault("provider", {})[provider_id] = provider_block
-    elif "provider" in cfg and provider_id in cfg["provider"]:
-        # Previously had a custom block; remove it since provider reverted to native
-        del cfg["provider"][provider_id]
-        if not cfg["provider"]:
+    provider_section: dict = cfg.get("provider", {})
+
+    # Remove old provider blocks written by slides-it (clean slate on provider change)
+    # We remove any provider that isn't the current one, if it was slides-it managed.
+    # Simple heuristic: if there's exactly one provider key that differs from provider_id, remove it.
+    if provider_id and provider_section:
+        stale = [k for k in list(provider_section.keys()) if k != provider_id]
+        for k in stale:
+            del provider_section[k]
+
+    if api_key and provider_id:
+        options: dict = {"apiKey": api_key}
+        if base_url:
+            options["baseURL"] = base_url
+
+        if provider_id in _NATIVE_PROVIDERS:
+            # Native provider: just options block
+            block: dict = {"options": options}
+        else:
+            # Custom OpenAI-compatible provider: needs npm + name + options
+            block = {
+                "npm": "@ai-sdk/openai-compatible",
+                "name": provider_id,
+                "options": options,
+            }
+            if custom_model:
+                block["models"] = {custom_model: {"name": custom_model}}
+
+        provider_section[provider_id] = block
+        cfg["provider"] = provider_section
+    else:
+        # No key → remove the provider block entirely (fall back to free tier)
+        if provider_id in provider_section:
+            del provider_section[provider_id]
+        if provider_section:
+            cfg["provider"] = provider_section
+        elif "provider" in cfg:
             del cfg["provider"]
 
     cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")

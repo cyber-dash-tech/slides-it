@@ -189,7 +189,6 @@ export interface SettingsRequest {
   apiKey: string
   baseURL: string
   customModel: string
-  clearKey: boolean
 }
 
 export function getSettings(): Promise<SettingsResponse> {
