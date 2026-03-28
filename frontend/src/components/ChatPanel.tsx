@@ -15,7 +15,6 @@ import {
   rejectQuestion,
   fileToFilePart,
   isAttachableAsFile,
-  findFiles,
   getTodos,
   getSessionDiff,
   type FilePart,
@@ -476,12 +475,30 @@ export default function ChatPanel({ workspacePath, activeSkill, activeTemplate, 
 
   function detectHtmlFile() {
     if (!workspacePath) return
-    findFiles('.html', 20)
-      .then((files) => {
-        const html = files
-          .filter((f) => f.path.endsWith('.html'))
-          .sort((a, b) => b.path.localeCompare(a.path))[0]
-        if (html) onHtmlGenerated(html.path)
+
+    // Look in <workspace>/slides/ first (AI always writes there),
+    // then fall back to workspace root. Uses our own /api/ls which is
+    // workspace-scoped and won't pick up false positives from large dirs.
+    const slidesDir = `${workspacePath}/slides`
+    fetch(`http://localhost:3000/api/ls?path=${encodeURIComponent(slidesDir)}`)
+      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then((entries: Array<{ name: string; path: string; type: string }>) => {
+        const html = entries
+          .filter((e) => e.type === 'file' && e.name.endsWith('.html'))
+          .sort((a, b) => b.name.localeCompare(a.name))[0]
+        if (html) {
+          onHtmlGenerated(html.path)
+          return
+        }
+        // Fallback: check workspace root
+        return fetch(`http://localhost:3000/api/ls?path=${encodeURIComponent(workspacePath)}`)
+          .then((r) => r.json())
+          .then((rootEntries: Array<{ name: string; path: string; type: string }>) => {
+            const rootHtml = rootEntries
+              .filter((e) => e.type === 'file' && e.name.endsWith('.html'))
+              .sort((a, b) => b.name.localeCompare(a.name))[0]
+            if (rootHtml) onHtmlGenerated(rootHtml.path)
+          })
       })
       .catch(() => {})
   }
