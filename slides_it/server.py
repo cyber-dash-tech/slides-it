@@ -6,6 +6,7 @@ import os
 import pathlib
 import signal
 import subprocess
+import tempfile
 import urllib.request
 from contextlib import asynccontextmanager
 from typing import List

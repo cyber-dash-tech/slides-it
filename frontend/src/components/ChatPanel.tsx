@@ -614,6 +614,14 @@ export default function ChatPanel({ workspacePath, activeSkill, activeTemplate, 
 
   // ── @ detection ──────────────────────────────────────────────────────────
   function handleInput(e: React.FormEvent<HTMLTextAreaElement>) {
+    // Don't touch atQuery while an IME composition is in progress — the
+    // composing buffer may contain spaces or other chars that would falsely
+    // dismiss the AtPopover mid-input.
+    if (isComposing) {
+      resize()
+      return
+    }
+
     const el = e.currentTarget
     const val = el.value
     const pos = el.selectionStart ?? val.length
