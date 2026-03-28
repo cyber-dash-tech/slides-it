@@ -1,0 +1,87 @@
+name: Release Test
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  test:
+    name: Smoke test (${{ matrix.artifact }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            artifact: slides-it-macos-arm64
+          - os: ubuntu-22.04
+            artifact: slides-it-linux-x86_64
+
+    steps:
+      - name: Extract version from release tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download binary from release
+        run: |
+          curl -fsSL \
+            "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ matrix.artifact }}" \
+            -o slides-it
+          chmod +x slides-it
+
+      - name: "--version outputs correct version"
+        run: |
+          output=$(./slides-it --version)
+          echo "Got: $output"
+          expected="slides-it ${{ steps.version.outputs.version }}"
+          if [ "$output" != "$expected" ]; then
+            echo "FAIL: expected '$expected', got '$output'"
+            exit 1
+          fi
+
+      - name: "--help lists all subcommands"
+        run: |
+          output=$(./slides-it --help)
+          echo "$output"
+          for cmd in stop upgrade template; do
+            if ! echo "$output" | grep -q "$cmd"; then
+              echo "FAIL: '$cmd' not found in --help output"
+              exit 1
+            fi
+          done
+
+      - name: "subcommand --help works"
+        run: |
+          ./slides-it stop --help
+          ./slides-it upgrade --help
+          ./slides-it template --help
+          ./slides-it template list
+
+      - name: "server starts and responds on port 3000"
+        run: |
+          ./slides-it &
+          SERVER_PID=$!
+          echo "Server PID: $SERVER_PID"
+
+          # Wait up to 10s for port 3000 to be ready
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:3000/ > /dev/null 2>&1; then
+              echo "Server is up"
+              break
+            fi
+            sleep 0.5
+          done
+
+          # Assert it's actually up
+          curl -f http://localhost:3000/ || { echo "FAIL: server did not respond on port 3000"; kill $SERVER_PID; exit 1; }
+
+          # Stop cleanly
+          ./slides-it stop
+          sleep 1
+
+          # Verify port is free
+          if curl -sf http://localhost:3000/ > /dev/null 2>&1; then
+            echo "FAIL: server still running after slides-it stop"
+            exit 1
+          fi
+          echo "Server stopped cleanly"

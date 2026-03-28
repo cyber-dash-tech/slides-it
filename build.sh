@@ -17,7 +17,16 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-echo "==> Building slides-it v$(grep '^version' pyproject.toml | head -1 | sed 's/.*= *"//' | sed 's/".*//')"
+PYPROJECT_VER="$(grep '^version' pyproject.toml | head -1 | sed 's/.*= *"//' | sed 's/".*//')"
+INIT_VER="$(python3 -c "import re; print(re.search(r'__version__\s*=\s*\"([^\"]+)\"', open('slides_it/__init__.py').read()).group(1))")"
+
+if [ "$PYPROJECT_VER" != "$INIT_VER" ]; then
+    echo "ERROR: Version mismatch — pyproject.toml=$PYPROJECT_VER but slides_it/__init__.py=$INIT_VER"
+    echo "Fix: update both files to the same version before building."
+    exit 1
+fi
+
+echo "==> Building slides-it v${PYPROJECT_VER}"
 
 # ---------------------------------------------------------------------------
 # 1. Build the React frontend
