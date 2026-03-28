@@ -283,6 +283,17 @@ Rules for preview.html:
 
 ### Phase T4 — Save via API
 
+The slides-it server manages all template storage. **You do NOT need to write
+any files to the workspace or to `~/.config` manually.** The API call below
+handles everything:
+
+- Installs the template to `~/.config/slides-it/templates/<name>/`
+- Sets it as the active template (because `activate` is `true`)
+- The template immediately appears in the UI template picker
+
+Do not attempt to write `TEMPLATE.md`, `SKILL.md`, or `preview.html` to disk
+yourself before this step.
+
 Write the JSON payload to a temporary file, then POST it to the slides-it server.
 Use a file to avoid any shell escaping issues with HTML/CSS content.
 
