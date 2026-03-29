@@ -345,3 +345,590 @@ Multiple presentations in one project:
 [name].html
 [name]-assets/
 ```
+
+---
+
+## Layout Component Library
+
+Ready-to-use HTML+CSS snippets. Copy directly into slide `<section>` elements.
+All components use CSS custom properties — they adapt automatically to the active template.
+
+### 1. Stats Row (3 large numbers)
+
+```html
+<div class="stats-row reveal">
+    <div class="stat-card">
+        <div class="stat-number" data-target="34" data-suffix="%">0%</div>
+        <div class="stat-label">Year-over-year growth</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" data-target="2.4" data-prefix="$" data-suffix="B">$0</div>
+        <div class="stat-label">Portfolio value</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" data-target="500" data-suffix="+">0</div>
+        <div class="stat-label">Global partners</div>
+    </div>
+</div>
+
+<style>
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(1rem, 2vw, 2rem);
+    width: 100%;
+}
+.stat-card {
+    background: var(--bg-secondary, #fff);
+    border: 1px solid var(--border, #e4e9f5);
+    border-radius: 8px;
+    padding: clamp(1.5rem, 2.5vw, 2.5rem);
+    text-align: center;
+    box-shadow: var(--shadow-accent, 0 20px 28px -20px rgba(58,43,224,0.5));
+}
+.stat-number {
+    font-size: clamp(2.2rem, 4.5vw, 3.8rem);
+    font-weight: 800;
+    color: var(--accent, #5748f5);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+}
+.stat-label {
+    font-size: clamp(0.75rem, 1vw, 0.9rem);
+    color: var(--text-secondary, #788098);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+</style>
+
+<!-- JS counter animation — add to SlidePresentation or as standalone -->
+<script>
+function animateCounters(slide) {
+    slide.querySelectorAll('.stat-number[data-target]').forEach(el => {
+        const target = parseFloat(el.dataset.target);
+        const prefix = el.dataset.prefix || '';
+        const suffix = el.dataset.suffix || '';
+        const isFloat = target % 1 !== 0;
+        const duration = 800;
+        const start = performance.now();
+        function step(now) {
+            const progress = Math.min((now - start) / duration, 1);
+            const ease = 1 - Math.pow(1 - progress, 3); // ease-out-cubic
+            const value = target * ease;
+            el.textContent = prefix + (isFloat ? value.toFixed(1) : Math.round(value)) + suffix;
+            if (progress < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    });
+}
+// Call animateCounters(slideEl) when a slide becomes visible
+</script>
+```
+
+---
+
+### 2. Two-Column (text + card)
+
+```html
+<div class="two-col reveal">
+    <div class="two-col-main">
+        <div class="section-label">Key Finding</div>
+        <h2>Main assertion goes here as a complete sentence</h2>
+        <p>Supporting explanation — 2–3 sentences maximum. Be specific and concrete.</p>
+    </div>
+    <div class="two-col-side">
+        <div class="card">
+            <div class="card-heading">Evidence</div>
+            <ul class="evidence-list">
+                <li>Supporting data point one</li>
+                <li>Supporting data point two</li>
+                <li>Supporting data point three</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<style>
+.two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(2rem, 4vw, 4rem);
+    align-items: start;
+    width: 100%;
+}
+.two-col-main .section-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent, #5748f5);
+    margin-bottom: 0.75rem;
+}
+.two-col-main h2 {
+    font-size: clamp(1.4rem, 2.5vw, 2rem);
+    font-weight: 600;
+    line-height: 1.3;
+    margin-bottom: 1rem;
+    color: var(--text-primary, #070e34);
+}
+.two-col-side .card {
+    background: var(--bg-secondary, #fff);
+    border: 1px solid var(--border, #e4e9f5);
+    border-radius: 8px;
+    padding: clamp(1.25rem, 2vw, 1.75rem);
+    box-shadow: var(--shadow-card, 0 2px 8px rgba(0,0,0,0.06));
+}
+.card-heading {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-secondary, #788098);
+    margin-bottom: 1rem;
+}
+.evidence-list {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+.evidence-list li {
+    padding-left: 1.1rem;
+    position: relative;
+    font-size: clamp(0.85rem, 1.1vw, 1rem);
+    color: var(--text-primary, #070e34);
+    line-height: 1.5;
+}
+.evidence-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent, #5748f5);
+}
+</style>
+```
+
+---
+
+### 3. Step Flow (horizontal process)
+
+```html
+<div class="step-flow reveal">
+    <div class="step">
+        <div class="step-circle">1</div>
+        <div class="step-title">Discover</div>
+        <div class="step-desc">Identify and evaluate opportunities</div>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step">
+        <div class="step-circle">2</div>
+        <div class="step-title">Validate</div>
+        <div class="step-desc">Prototype and test with real users</div>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step">
+        <div class="step-circle">3</div>
+        <div class="step-title">Scale</div>
+        <div class="step-desc">Deploy and grow across markets</div>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step">
+        <div class="step-circle">4</div>
+        <div class="step-title">Optimise</div>
+        <div class="step-desc">Measure, learn, iterate</div>
+    </div>
+</div>
+
+<style>
+.step-flow {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    width: 100%;
+}
+.step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.75rem;
+}
+.step-circle {
+    width: clamp(2.5rem, 4vw, 3.5rem);
+    height: clamp(2.5rem, 4vw, 3.5rem);
+    border-radius: 50%;
+    background: var(--accent, #5748f5);
+    color: #fff;
+    font-size: clamp(1rem, 1.5vw, 1.4rem);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-accent, 0 8px 20px -8px rgba(58,43,224,0.6));
+    flex-shrink: 0;
+}
+.step-connector {
+    flex: 0 0 2rem;
+    height: 2px;
+    background: var(--border, #e4e9f5);
+    margin-top: clamp(1.25rem, 2vw, 1.75rem);
+    align-self: flex-start;
+}
+.step-title {
+    font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+    font-weight: 600;
+    color: var(--text-primary, #070e34);
+}
+.step-desc {
+    font-size: clamp(0.75rem, 0.9vw, 0.875rem);
+    color: var(--text-secondary, #788098);
+    line-height: 1.5;
+    max-width: 140px;
+}
+</style>
+```
+
+---
+
+### 4. Feature Card Grid (2×2 or 3-col)
+
+```html
+<div class="card-grid reveal">
+    <div class="feature-card">
+        <div class="feature-icon"><!-- inline SVG icon here --></div>
+        <div class="feature-title">Feature One</div>
+        <div class="feature-desc">One or two sentence description of this feature.</div>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon"><!-- inline SVG icon here --></div>
+        <div class="feature-title">Feature Two</div>
+        <div class="feature-desc">One or two sentence description of this feature.</div>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon"><!-- inline SVG icon here --></div>
+        <div class="feature-title">Feature Three</div>
+        <div class="feature-desc">One or two sentence description of this feature.</div>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon"><!-- inline SVG icon here --></div>
+        <div class="feature-title">Feature Four</div>
+        <div class="feature-desc">One or two sentence description of this feature.</div>
+    </div>
+</div>
+
+<style>
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* change to repeat(3,1fr) for 3-col */
+    gap: clamp(1rem, 1.5vw, 1.5rem);
+    width: 100%;
+}
+.feature-card {
+    background: var(--bg-secondary, #fff);
+    border: 1px solid var(--border, #e4e9f5);
+    border-radius: 8px;
+    border-top: 3px solid var(--accent, #5748f5);
+    padding: clamp(1.25rem, 2vw, 1.75rem);
+    box-shadow: var(--shadow-card, 0 2px 8px rgba(0,0,0,0.06));
+}
+.feature-icon {
+    width: 2rem;
+    height: 2rem;
+    color: var(--accent, #5748f5);
+    margin-bottom: 0.75rem;
+}
+.feature-icon svg { width: 100%; height: 100%; }
+.feature-title {
+    font-size: clamp(0.95rem, 1.2vw, 1.1rem);
+    font-weight: 600;
+    color: var(--text-primary, #070e34);
+    margin-bottom: 0.4rem;
+}
+.feature-desc {
+    font-size: clamp(0.8rem, 1vw, 0.9rem);
+    color: var(--text-secondary, #788098);
+    line-height: 1.6;
+}
+</style>
+```
+
+---
+
+### 5. Quote Block
+
+```html
+<div class="quote-block reveal">
+    <div class="quote-mark">"</div>
+    <blockquote class="quote-text">
+        The best way to predict the future is to create it.
+    </blockquote>
+    <div class="quote-attribution">— Peter Drucker</div>
+</div>
+
+<style>
+.quote-block {
+    border-left: 4px solid var(--accent, #5748f5);
+    padding: clamp(1.5rem, 3vw, 3rem) clamp(1.5rem, 3vw, 3rem);
+    max-width: 800px;
+}
+.quote-mark {
+    font-size: clamp(3rem, 6vw, 6rem);
+    line-height: 0.5;
+    color: var(--accent, #5748f5);
+    font-weight: 800;
+    margin-bottom: 1rem;
+    opacity: 0.4;
+}
+.quote-text {
+    font-size: clamp(1.4rem, 2.8vw, 2.4rem);
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--text-primary, #070e34);
+    font-style: normal;
+    margin-bottom: 1.25rem;
+}
+.quote-attribution {
+    font-size: clamp(0.8rem, 1vw, 0.95rem);
+    color: var(--text-secondary, #788098);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+}
+</style>
+```
+
+---
+
+### 6. 2×2 Matrix
+
+```html
+<div class="matrix-grid reveal">
+    <div class="matrix-cell matrix-tl">
+        <div class="matrix-label">High Impact / Low Effort</div>
+        <div class="matrix-content">Quick wins to prioritise now</div>
+    </div>
+    <div class="matrix-cell matrix-tr">
+        <div class="matrix-label">High Impact / High Effort</div>
+        <div class="matrix-content">Strategic projects — plan carefully</div>
+    </div>
+    <div class="matrix-cell matrix-bl">
+        <div class="matrix-label">Low Impact / Low Effort</div>
+        <div class="matrix-content">Fill-ins when capacity allows</div>
+    </div>
+    <div class="matrix-cell matrix-br">
+        <div class="matrix-label">Low Impact / High Effort</div>
+        <div class="matrix-content">Avoid or eliminate</div>
+    </div>
+</div>
+
+<style>
+.matrix-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 2px;
+    background: var(--border, #e4e9f5);
+    border-radius: 8px;
+    overflow: hidden;
+    width: 100%;
+    aspect-ratio: 16/9;
+    max-height: 55vh;
+}
+.matrix-cell {
+    background: var(--bg-secondary, #fff);
+    padding: clamp(1rem, 2vw, 2rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.matrix-tl { border-left: 4px solid var(--accent, #5748f5); }
+.matrix-tr { border-left: 4px solid var(--accent-2, #348aed); }
+.matrix-bl { border-left: 4px solid var(--border-strong, #dfe1eb); }
+.matrix-br { border-left: 4px solid var(--text-muted, #a5aaba); }
+.matrix-label {
+    font-size: clamp(0.7rem, 0.85vw, 0.8rem);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary, #788098);
+}
+.matrix-content {
+    font-size: clamp(0.85rem, 1.1vw, 1rem);
+    font-weight: 500;
+    color: var(--text-primary, #070e34);
+    line-height: 1.5;
+}
+</style>
+```
+
+---
+
+## Inline SVG Icon Library
+
+Embed directly in HTML — no external files, no CDN, no dependencies.
+All icons are 24×24 viewBox. Scale via `width`/`height` on the `<svg>` tag.
+Set color via `currentColor` (inherits from CSS `color` property).
+
+Usage: `<svg width="24" height="24" ...> ... </svg>` inside `.feature-icon` or any container.
+
+---
+
+### Business & Strategy
+
+**Trending Up (growth / revenue)**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+  <polyline points="16 7 22 7 22 13"/>
+</svg>
+```
+
+**Target / Goal**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="10"/>
+  <circle cx="12" cy="12" r="6"/>
+  <circle cx="12" cy="12" r="2"/>
+</svg>
+```
+
+**Handshake / Partnership**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 7.65l.77.78L12 21l7.65-7.65.77-.78a5.4 5.4 0 0 0 0-7.65z"/>
+</svg>
+```
+
+**Bar Chart / Analytics**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="18" y1="20" x2="18" y2="10"/>
+  <line x1="12" y1="20" x2="12" y2="4"/>
+  <line x1="6" y1="20" x2="6" y2="14"/>
+  <line x1="2" y1="20" x2="22" y2="20"/>
+</svg>
+```
+
+**Globe / Global reach**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="10"/>
+  <line x1="2" y1="12" x2="22" y2="12"/>
+  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+</svg>
+```
+
+**Users / Team**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+  <circle cx="9" cy="7" r="4"/>
+  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+</svg>
+```
+
+**Building / Organization**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="9" width="18" height="12" rx="1"/>
+  <path d="M8 9V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4"/>
+  <line x1="12" y1="12" x2="12" y2="15"/>
+  <rect x="9" y="15" width="6" height="6"/>
+</svg>
+```
+
+---
+
+### Technology & Innovation
+
+**Lightning / Speed / AI**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+</svg>
+```
+
+**Rocket / Growth / Launch**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+  <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+  <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
+  <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+</svg>
+```
+
+**Gear / Operations / System**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="3"/>
+  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+</svg>
+```
+
+**Cloud / Platform / Infrastructure**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+</svg>
+```
+
+**Lock / Security / Trust**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+</svg>
+```
+
+---
+
+### UI & Communication
+
+**Lightbulb / Insight / Idea**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="9" y1="18" x2="15" y2="18"/>
+  <line x1="10" y1="22" x2="14" y2="22"/>
+  <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/>
+</svg>
+```
+
+**Check Circle / Success / Completed**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+  <polyline points="22 4 12 14.01 9 11.01"/>
+</svg>
+```
+
+**Star / Excellence / Rating**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+</svg>
+```
+
+**Clock / Timeline / Efficiency**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="10"/>
+  <polyline points="12 6 12 12 16 14"/>
+</svg>
+```
+
+**Arrow Right / Next / CTA**
+```html
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="5" y1="12" x2="19" y2="12"/>
+  <polyline points="12 5 19 12 12 19"/>
+</svg>
+```

@@ -159,6 +159,42 @@ hotzone.addEventListener('mouseleave', () => {
 - Closing slide: summary or call-to-action
 - Comments in every CSS and JS section explaining purpose and how to modify
 
+### Visual Quality Rules
+
+**Layout Diversity** — choose the layout based on content type, never default to a bullet list:
+
+| Content type | Required layout |
+|---|---|
+| Key metrics / data | Stat card row (large number + label) — not a list |
+| Process / steps | Horizontal step flow with numbered circles |
+| Comparison / contrast | Two-column or 2×2 matrix |
+| Key insight / quote | Large quote block with left accent border |
+| Features / items | Card grid (2–3 columns) |
+| Pure bullet list | Must pair with at least 1 visual element (icon, number, accent stripe) |
+
+**Visual Hierarchy** — every slide must have exactly 1 dominant visual focal point:
+- A large stat number (weight 700+, size 3rem+), or
+- A strong accent stripe / left border, or
+- A prominent inline SVG icon, or
+- A high-contrast heading on a dark background
+
+Forbidden: plain colored background + unstyled bullet list with zero decorative elements.
+That is the lowest-quality output. Always add at least one visual anchor.
+
+**Animation Quality**:
+- Entrance animations must have directionality — use `translateY` or `translateX`, not opacity-only fade
+- Numeric data (percentages, dollar amounts, counts) must use a JS counter animation that counts from 0 to the target value on slide enter
+- List items must stagger — never reveal all items simultaneously
+- Cover slide title: combine `translateY` + subtle `scale(0.97 → 1)` for a quality weight-drop feel
+
+**Graphic Elements** — every content slide must include at least one of:
+- An inline SVG icon relevant to the slide topic (embed directly in HTML — no external files)
+- A decorative accent line, left border stripe, or geometric shape using the accent color
+- Numbered circle badges for step/process slides
+- A subtle background shape (low opacity, does not interfere with content readability)
+
+See `html-template.md` for ready-to-use SVG icons and layout component HTML snippets.
+
 ---
 
 ## File Naming
