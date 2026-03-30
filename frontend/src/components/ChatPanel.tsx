@@ -15,11 +15,8 @@ import {
   rejectQuestion,
   fileToFilePart,
   isAttachableAsFile,
-  getTodos,
-  getSessionDiff,
   type FilePart,
   type Todo,
-  type FileDiff,
 } from '../lib/opencode-api'
 import {
   enqueueDelta,
@@ -37,6 +34,7 @@ import ToolBlock from './ToolBlock'
 import QuestionBlock from './QuestionBlock'
 import AtPopover from './AtPopover'
 import DesignModal from './DesignModal'
+import TodoBubble from './TodoBubble'
 
 const MarkdownRenderer = lazy(() => import('./MarkdownRenderer'))
 
@@ -48,8 +46,6 @@ interface ChatPanelProps {
   activeDesign?: string
   onDesignChange?: (name: string) => Promise<string>
   onHtmlGenerated: (path: string) => void
-  onTodosChange?: (todos: Todo[]) => void
-  onDiffsChange?: (diffs: FileDiff[]) => void
   modelRefreshToken?: number
 }
 
@@ -58,7 +54,7 @@ interface AtReference {
   name: string
 }
 
-export default function ChatPanel({ workspacePath, activeSkill, activeDesign, onDesignChange, onHtmlGenerated, onTodosChange, onDiffsChange, modelRefreshToken }: ChatPanelProps) {
+export default function ChatPanel({ workspacePath, activeSkill, activeDesign, onDesignChange, onHtmlGenerated, modelRefreshToken }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [sending, setSending] = useState(false)
   const [input, setInput] = useState('')
@@ -225,10 +221,6 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
         setSessionId(s.id)
         sessionIdRef.current = s.id
 
-        // Load initial todos and diffs for this session
-        getTodos(s.id).then((t) => onTodosChange?.(Array.isArray(t) ? t : [])).catch(() => {})
-        getSessionDiff(s.id).then((d) => onDiffsChange?.(Array.isArray(d) ? d : [])).catch(() => {})
-
         if (savedMessages.length > 0) {
           setMessages(savedMessages)
           messagesRef.current = savedMessages
@@ -305,12 +297,22 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
 
     if (type === 'todo.updated') {
       const todos = properties.todos
-      onTodosChange?.(Array.isArray(todos) ? todos as Todo[] : [])
+      if (Array.isArray(todos) && todos.length > 0) {
+        setMessages((prev) => [...prev, {
+          id: `todos-${Date.now()}`,
+          role: 'todos',
+          text: '',
+          streaming: false,
+          error: null,
+          timestamp: new Date(),
+          tools: [],
+          todos: todos as Todo[],
+        }])
+      }
     }
 
     if (type === 'session.diff') {
-      const diff = properties.diff
-      onDiffsChange?.(Array.isArray(diff) ? diff as FileDiff[] : [])
+      // diffs no longer displayed — ignore
     }
 
     if (type === 'file.edited') {
@@ -586,8 +588,6 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
     setRunningTool('')
     setAtReferences([])
     setAtQuery(null)
-    onTodosChange?.([])
-    onDiffsChange?.([])
     const s = await createSession('slides-it').catch(() => null)
     if (s) {
       setSessionId(s.id)
@@ -861,8 +861,10 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
       onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-surface)')}
       title="Manage designs"
     >
-      <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: 'var(--text-muted)' }} />
-      <span className="truncate max-w-[100px]">{activeDesign ?? 'default'}</span>
+      <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+      <span>design</span>
     </button>
   ) : null
 
@@ -1060,6 +1062,11 @@ function MessageBubble({
   const isUser = msg.role === 'user'
   const attachments = (msg as ChatMessage & { attachmentNames?: string[] }).attachmentNames
   const [thinkingOpen, setThinkingOpen] = useState(false)
+
+  // Todos bubble — render the dedicated TodoBubble component
+  if (msg.role === 'todos') {
+    return <TodoBubble todos={msg.todos ?? []} timestamp={msg.timestamp} />
+  }
 
   return (
     <div

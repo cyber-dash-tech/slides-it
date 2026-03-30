@@ -37,7 +37,7 @@ export function flushAll(
 // Re-export ChatMessage so the engine and components share the same type
 export interface ChatMessage {
   id: string
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'todos'
   text: string
   streaming: boolean
   error: string | null
@@ -51,6 +51,15 @@ export interface ChatMessage {
     questions: QuestionInfo[]
   }
   attachmentNames?: string[]    // @ referenced file names, shown as badges
+  todos?: TodoItem[]            // populated when role === 'todos'
+}
+
+// Inline todo item type (mirrors opencode-api Todo, kept local to avoid circular imports)
+export interface TodoItem {
+  id: string
+  content: string
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+  priority: 'high' | 'medium' | 'low'
 }
 
 export interface ToolEntry {

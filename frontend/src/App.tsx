@@ -5,10 +5,8 @@ import PreviewPanel from './components/PreviewPanel'
 import FileTree from './components/FileTree'
 import WorkspaceSelector from './components/WorkspaceSelector'
 import SettingsModal from './components/SettingsModal'
-import SessionPanel from './components/SessionPanel'
 import ErrorBoundary from './components/ErrorBoundary'
 import { getDesignSkill, getStatus } from './lib/slides-server-api'
-import type { Todo, FileDiff } from './lib/opencode-api'
 
 type Page = 'workspace' | 'chat' | 'loading'
 
@@ -22,8 +20,6 @@ export default function App() {
   const [fileTreeRefreshToken, setFileTreeRefreshToken] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [modelRefreshToken, setModelRefreshToken] = useState(0)
-  const [todos, setTodos] = useState<Todo[]>([])
-  const [diffs, setDiffs] = useState<FileDiff[]>([])
 
   // On mount: check if the server is already running with an active workspace.
   // If so, skip the workspace selector and go directly to chat.
@@ -115,7 +111,6 @@ export default function App() {
               }}
             />
           </div>
-          <SessionPanel todos={todos} diffs={diffs} />
         </div>
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <ChatPanel
@@ -128,8 +123,6 @@ export default function App() {
               setPreviewFile(toRelative(path))
               setFileTreeRefreshToken((t) => t + 1)
             }}
-            onTodosChange={setTodos}
-            onDiffsChange={setDiffs}
           />
         </div>
         <PreviewPanel htmlFile={previewFile} />
