@@ -63,7 +63,7 @@ echo "==> Running PyInstaller..."
 uv run pyinstaller \
     --onefile \
     --name slides-it \
-    --add-data "slides_it/templates:slides_it/templates" \
+    --add-data "slides_it/designs:slides_it/designs" \
     --add-data "slides_it/skill:slides_it/skill" \
     --add-data "frontend/dist:frontend/dist" \
     --collect-all slides_it \

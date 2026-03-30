@@ -18,7 +18,7 @@ CONFIG_FILE = CONFIG_DIR / "config.json"
 
 # Built-in designs shipped with the package — used only as seed source.
 # At runtime all designs live in DESIGNS_DIR (~/.config/slides-it/designs/).
-_SEED_DIR = pathlib.Path(__file__).parent / "templates"
+_SEED_DIR = pathlib.Path(__file__).parent / "designs"
 
 DEFAULT_DESIGN = "default"
 
