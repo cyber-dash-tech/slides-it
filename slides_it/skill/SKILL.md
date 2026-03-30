@@ -27,10 +27,48 @@ Before writing any HTML, ask the user these questions **in a single message**
 4. **Language** — What language should the slides be in?
 5. **Images** — Do you have images to include? If yes, ask for file paths.
 6. **Inline editing** — Do you want to be able to edit text directly in the browser?
+7. **Visual style** — What aesthetic fits your audience? (e.g. clean & minimal,
+   bold & energetic, dark & technical, warm & approachable — or describe in your
+   own words)
 
 If the user's first message already answers most of these, skip what's clear and
 only ask about what's missing. If the message is detailed enough, proceed directly
-to Phase 2.
+to Phase 1.5.
+
+### Phase 1.5 — Select Design
+
+Once you have the user's answers (especially topic, audience, and visual style),
+pick the best-fit design before generating slides.
+
+**Skip this phase entirely** if only one design is installed.
+
+1. Fetch all installed designs:
+
+```bash
+curl -s http://localhost:3000/api/designs
+```
+
+2. Compare the response against the user's answers. Use each design's `description`
+   field and name to judge the fit. The currently active design has `"active": true`.
+
+3. Present your findings in a short message:
+   - List each available design with its description (one line each)
+   - State your recommendation and the reasoning (one sentence)
+   - Ask: "Shall I use **\<name\>** for this presentation, or would you prefer
+     a different one?"
+
+4. Wait for the user's reply, then act:
+   - **Confirmed** (e.g. "yes", "sure", "go ahead") → activate the recommended
+     design and proceed to Phase 2:
+     ```bash
+     curl -s -X PUT http://localhost:3000/api/designs/<name>/activate
+     ```
+   - **User names a different design** → activate that one instead, then Phase 2.
+   - **User says keep the current one** → skip the switch, proceed to Phase 2.
+
+Do not proceed to Phase 2 until the user has replied to the design question.
+
+---
 
 ### Phase 2 — Generate
 
@@ -243,10 +281,10 @@ you chose. Ask if they want any adjustments before proceeding.
 
 ---
 
-### Phase T2 — Generate SKILL.md
+### Phase T2 — Generate skill text
 
-Write the complete SKILL.md for the design. It must follow this exact structure
-(use the default design's SKILL.md as the canonical reference):
+Write the complete skill text body for the design. It must follow this exact structure
+(use the default design's DESIGN.md as the canonical reference):
 
 ```
 ## Visual Style — {Aesthetic Name} Theme
@@ -311,7 +349,7 @@ showcases the design's visual style:
 Rules for preview.html:
 - Fully self-contained — all CSS and JS inline, no external resources except
   the web font `<link>` tag.
-- Use **exactly** the CSS variables defined in the SKILL.md you just generated.
+- Use **exactly** the CSS variables defined in the skill text you just generated.
 - Include working keyboard navigation (arrow keys) and nav dots.
 - Must look great at 900×600px (the DesignModal preview iframe size).
 
@@ -327,7 +365,7 @@ handles everything:
 - Sets it as the active design (because `activate` is `true`)
 - The design immediately appears in the UI design picker
 
-Do not attempt to write `TEMPLATE.md`, `SKILL.md`, or `preview.html` to disk
+Do not attempt to write `DESIGN.md` or `preview.html` to disk
 yourself before this step.
 
 Write the JSON payload to a temporary file, then POST it to the slides-it server.
@@ -341,7 +379,7 @@ import json, pathlib
 payload = {
     "name": "<aesthetic-name>",           # kebab-case, e.g. "warm-editorial"
     "description": "<one-line description>",
-    "skill_md": """<full SKILL.md content>""",
+    "skill_md": """<full skill text body>""",
     "preview_html": """<full preview.html content>""",
     "activate": True
 }
@@ -396,7 +434,7 @@ Do not generate a presentation unless the user asks for one.
 - The `skill_md` you generate becomes the AI's only style reference for that
   design. Make it precise and complete — vague instructions produce
   inconsistent slides.
-- preview.html must use the **exact same CSS variables** as the SKILL.md. If
+- preview.html must use the **exact same CSS variables** as the skill text. If
   they diverge the preview will look wrong.
 - If the user uploads multiple images with conflicting styles, ask which one
   to use as the primary reference before proceeding.
