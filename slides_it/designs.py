@@ -6,7 +6,7 @@ import shutil
 import tempfile
 import urllib.request
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -33,6 +33,7 @@ class DesignInfo:
     description: str
     author: str
     version: str
+    skill_text: str = field(default="")
 
 
 # ---------------------------------------------------------------------------
@@ -45,7 +46,6 @@ class DesignManager:
     def __init__(self) -> None:
         DESIGNS_DIR.mkdir(parents=True, exist_ok=True)
         CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        self._migrate_legacy_templates_dir()
         self._seed_builtin_designs()
 
     # ------------------------------------------------------------------
@@ -58,8 +58,8 @@ class DesignManager:
         if not DESIGNS_DIR.exists():
             return results
         for path in sorted(DESIGNS_DIR.iterdir()):
-            if path.is_dir() and (path / "TEMPLATE.md").exists():
-                info = self._parse_design_md(path / "TEMPLATE.md")
+            if path.is_dir() and (path / "DESIGN.md").exists():
+                info = self._parse_design_file(path / "DESIGN.md")
                 if info:
                     results.append(info)
         return results
@@ -70,7 +70,7 @@ class DesignManager:
 
         Args:
             source: Registry name, https:// URL (zip), github:user/repo, or local path.
-            name: Override the design name. Defaults to name from TEMPLATE.md.
+            name: Override the design name. Defaults to name from DESIGN.md.
 
         Returns:
             Installed design name.
@@ -165,32 +165,35 @@ class DesignManager:
 
     def get_skill_md(self, name: str | None = None) -> str:
         """
-        Read and return the SKILL.md content for a design.
+        Read and return the skill text body from DESIGN.md for a design.
 
         Args:
             name: Design name. Defaults to the active design.
 
         Returns:
-            SKILL.md file contents as a string.
+            Skill text (everything after the frontmatter block) as a string.
 
         Raises:
-            ValueError: If design is not installed or SKILL.md is missing.
+            ValueError: If design is not installed or DESIGN.md is missing.
         """
         design_name = name or self.active()
         path = self._design_path(design_name)
         if not path:
             raise ValueError(f"Design '{design_name}' is not installed")
-        skill_file = path / "SKILL.md"
-        if not skill_file.exists():
-            raise ValueError(f"Design '{design_name}' has no SKILL.md")
-        return skill_file.read_text(encoding="utf-8")
+        design_file = path / "DESIGN.md"
+        if not design_file.exists():
+            raise ValueError(f"Design '{design_name}' has no DESIGN.md")
+        info = self._parse_design_file(design_file)
+        if not info:
+            raise ValueError(f"Design '{design_name}' has no DESIGN.md")
+        return info.skill_text
 
     def build_prompt(self, design_name: str | None = None) -> str:
         """
         Concatenate core SKILL.md + design context into a combined system prompt.
 
         Injects the active design name and path so the agent can reference
-        preview.html and SKILL.md directly from ~/.config/slides-it/designs/.
+        preview.html and DESIGN.md directly from ~/.config/slides-it/designs/.
 
         Args:
             design_name: Design to use. Defaults to the active design.
@@ -213,7 +216,7 @@ class DesignManager:
         design_header = (
             f"<!-- Active design: {name} -->\n"
             f"<!-- Design files: {design_dir}/ -->\n"
-            f"<!--   - SKILL.md — style instructions (injected below) -->\n"
+            f"<!--   - DESIGN.md — metadata + style instructions (injected below) -->\n"
             f"{preview_line}\n\n"
         )
         return f"{design_header}{core_skill}\n\n---\n\n{design_skill}"
@@ -221,26 +224,6 @@ class DesignManager:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
-
-    def _migrate_legacy_templates_dir(self) -> None:
-        """
-        One-time migration: copy ~/.config/slides-it/templates/ → designs/
-        if the old directory exists and the new one is empty/missing.
-        """
-        old_dir = CONFIG_DIR / "templates"
-        if not old_dir.exists():
-            return
-        # Only migrate if designs/ has no subdirs yet (first run after upgrade)
-        if DESIGNS_DIR.exists() and any(
-            p.is_dir() and (p / "TEMPLATE.md").exists()
-            for p in DESIGNS_DIR.iterdir()
-        ):
-            return
-        for src in sorted(old_dir.iterdir()):
-            if src.is_dir() and (src / "TEMPLATE.md").exists():
-                dst = DESIGNS_DIR / src.name
-                dst.mkdir(exist_ok=True)
-                shutil.copytree(src, dst, dirs_exist_ok=True)
 
     def _seed_builtin_designs(self) -> None:
         """
@@ -253,7 +236,7 @@ class DesignManager:
         if not _SEED_DIR.exists():
             return
         for src in sorted(_SEED_DIR.iterdir()):
-            if not src.is_dir() or not (src / "TEMPLATE.md").exists():
+            if not src.is_dir() or not (src / "DESIGN.md").exists():
                 continue
             dst = DESIGNS_DIR / src.name
             dst.mkdir(exist_ok=True)
@@ -262,7 +245,7 @@ class DesignManager:
     def _design_path(self, name: str) -> pathlib.Path | None:
         """Return the directory for a design, or None if not found."""
         path = DESIGNS_DIR / name
-        if path.exists() and (path / "TEMPLATE.md").exists():
+        if path.exists() and (path / "DESIGN.md").exists():
             return path
         return None
 
@@ -288,12 +271,10 @@ class DesignManager:
         """Install a design from a local directory."""
         if not path.exists():
             raise ValueError(f"Path does not exist: {path}")
-        if not (path / "TEMPLATE.md").exists():
-            raise ValueError(f"No TEMPLATE.md found in {path}")
-        if not (path / "SKILL.md").exists():
-            raise ValueError(f"No SKILL.md found in {path}")
+        if not (path / "DESIGN.md").exists():
+            raise ValueError(f"No DESIGN.md found in {path}")
 
-        info = self._parse_design_md(path / "TEMPLATE.md")
+        info = self._parse_design_file(path / "DESIGN.md")
         design_name = name or (info.name if info else path.name)
         target = DESIGNS_DIR / design_name
         if target.exists():
@@ -317,39 +298,62 @@ class DesignManager:
 
     def _install_from_extracted(self, extract_dir: pathlib.Path, name: str | None) -> str:
         """Find the design root inside an extracted zip and install it."""
-        # GitHub zips wrap contents in a subdirectory — find TEMPLATE.md
+        # GitHub zips wrap contents in a subdirectory — find DESIGN.md
         design_root: pathlib.Path | None = None
         for candidate in [extract_dir, *extract_dir.iterdir()]:
-            if candidate.is_dir() and (candidate / "TEMPLATE.md").exists():
+            if candidate.is_dir() and (candidate / "DESIGN.md").exists():
                 design_root = candidate
                 break
         if not design_root:
-            raise RuntimeError("No TEMPLATE.md found inside the downloaded zip")
+            raise RuntimeError("No DESIGN.md found inside the downloaded zip")
         return self._install_from_path(design_root, name)
 
     @staticmethod
-    def _parse_design_md(path: pathlib.Path) -> DesignInfo | None:
-        """Parse YAML frontmatter from TEMPLATE.md and return DesignInfo."""
+    def _parse_design_file(path: pathlib.Path) -> DesignInfo | None:
+        """
+        Parse DESIGN.md and return a DesignInfo with both metadata and skill text.
+
+        DESIGN.md format:
+            ---
+            name: ...
+            description: ...
+            author: ...
+            version: ...
+            ---
+
+            <skill text body>
+
+        The YAML frontmatter block is between the first and second '---' lines.
+        Everything after the closing '---' is the skill text.
+        """
         try:
             text = path.read_text(encoding="utf-8")
         except OSError:
             return None
 
         fields: dict[str, str] = {}
+        skill_text = ""
         lines = text.splitlines()
+
         if lines and lines[0].strip() == "---":
-            for line in lines[1:]:
+            end_idx = None
+            for i, line in enumerate(lines[1:], start=1):
                 if line.strip() == "---":
+                    end_idx = i
                     break
                 if ":" in line:
                     key, _, value = line.partition(":")
                     fields[key.strip()] = value.strip()
+            if end_idx is not None:
+                # Everything after the closing --- is the skill text body
+                skill_text = "\n".join(lines[end_idx + 1:]).strip()
 
         return DesignInfo(
             name=fields.get("name", path.parent.name),
             description=fields.get("description", ""),
             author=fields.get("author", "unknown"),
             version=fields.get("version", "0.0.0"),
+            skill_text=skill_text,
         )
 
     def _load_config(self) -> dict[str, str]:

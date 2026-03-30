@@ -1,3 +1,11 @@
+---
+name: plugandplay
+description: Plug and Play brand style — off-white canvas, deep navy sections, violet accent, Inter typography
+author: slides-it
+version: 1.0.0
+preview: bundled
+---
+
 ## Visual Style — Plug and Play Theme
 
 Apply this visual style when generating all slides in this session.

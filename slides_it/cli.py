@@ -87,8 +87,8 @@ design_app = typer.Typer(
     help=(
         "Manage presentation designs.\n\n"
         "Designs control the visual style the AI uses when generating slides.\n"
-        "Each design is a directory with a SKILL.md (style instructions) and\n"
-        "a TEMPLATE.md (metadata). Built-in designs ship with slides-it;\n"
+        "Each design is a directory with a DESIGN.md (metadata + style instructions)\n"
+        "and an optional preview.html. Built-in designs ship with slides-it;\n"
         "community designs can be installed from the official registry or any URL."
     ),
     rich_markup_mode="markdown",

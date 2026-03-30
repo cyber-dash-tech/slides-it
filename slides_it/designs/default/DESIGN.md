@@ -1,3 +1,11 @@
+---
+name: default
+description: Clean modern dark theme — works for any topic
+author: slides-it
+version: 1.0.0
+preview: https://raw.githubusercontent.com/slides-it/slides-it/main/slides_it/designs/default/preview.png
+---
+
 ## Visual Style — Aurora Theme
 
 Apply this visual style when generating all slides in this session.

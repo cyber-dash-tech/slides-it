@@ -393,7 +393,7 @@ def get_design_skill(name: str) -> dict[str, str]:
     """
     Return the combined system prompt for the given design.
 
-    Concatenates core SKILL.md + design SKILL.md. The frontend sends this
+    Concatenates core SKILL.md + design skill text from DESIGN.md. The frontend sends this
     as the `system` field in POST /session/:id/prompt_async so that the active
     design's visual style is injected on every message without touching any
     config files on disk.
@@ -425,25 +425,22 @@ def get_design_preview(name: str) -> dict[str, str]:
 @app.get("/api/design/{name}", response_model=DesignDetail)
 def get_design(name: str) -> DesignDetail:
     """
-    Return full details for a single design — metadata, SKILL.md, and preview.html.
+    Return full details for a single design — metadata, skill text, and preview.html.
 
     Used by the AI agent to fetch the active design's visual reference in one
     call before generating slides. Also available to the frontend for any future
     use that needs all fields together.
 
     preview_html is null if the design has no preview.html.
-    skill_md contains only the design's own SKILL.md (not the core skill).
+    skill_md contains the skill text body from DESIGN.md (not the combined prompt).
     """
     dm = DesignManager()
     path = dm._design_path(name)
     if not path:
         raise HTTPException(status_code=404, detail=f"Design '{name}' not found")
-    info = dm._parse_design_md(path / "TEMPLATE.md")
+    info = dm._parse_design_file(path / "DESIGN.md")
     if not info:
-        raise HTTPException(status_code=404, detail=f"Design '{name}' has no TEMPLATE.md")
-    skill_file = path / "SKILL.md"
-    if not skill_file.exists():
-        raise HTTPException(status_code=404, detail=f"Design '{name}' has no SKILL.md")
+        raise HTTPException(status_code=404, detail=f"Design '{name}' has no DESIGN.md")
     preview_file = path / "preview.html"
     return DesignDetail(
         name=info.name,
@@ -452,7 +449,7 @@ def get_design(name: str) -> DesignDetail:
         version=info.version,
         active=info.name == dm.active(),
         has_preview=preview_file.exists(),
-        skill_md=skill_file.read_text(encoding="utf-8"),
+        skill_md=info.skill_text,
         preview_html=preview_file.read_text(encoding="utf-8") if preview_file.exists() else None,
     )
 
@@ -496,8 +493,8 @@ def install_design(req: InstallDesignRequest) -> dict[str, str]:
           "activate": true
         }
 
-    In Mode B the server writes a temporary directory containing TEMPLATE.md,
-    SKILL.md, and optionally preview.html, then installs it via the same
+    In Mode B the server writes a temporary directory containing DESIGN.md
+    and optionally preview.html, then installs it via the same
     _install_from_path() codepath used by Mode A.  This keeps all install
     logic in one place.
     """
@@ -536,19 +533,17 @@ def install_design(req: InstallDesignRequest) -> dict[str, str]:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = pathlib.Path(tmp)
 
-            # Write TEMPLATE.md with YAML frontmatter
-            template_md = (
+            # Write DESIGN.md — YAML frontmatter + skill text body in one file
+            design_md = (
                 "---\n"
                 f"name: {name}\n"
                 f"description: {req.description.strip() or 'AI-generated design'}\n"
                 "author: ai-generated\n"
                 "version: 1.0.0\n"
-                "---\n"
+                "---\n\n"
+                f"{req.skill_md}"
             )
-            (tmp_path / "TEMPLATE.md").write_text(template_md, encoding="utf-8")
-
-            # Write SKILL.md
-            (tmp_path / "SKILL.md").write_text(req.skill_md, encoding="utf-8")
+            (tmp_path / "DESIGN.md").write_text(design_md, encoding="utf-8")
 
             # Write preview.html if provided
             if req.preview_html.strip():
