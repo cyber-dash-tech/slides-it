@@ -28,7 +28,7 @@ import {
   type ToolEntry,
   type QuestionRequest,
 } from '../lib/typewriter'
-import { getModels, setModel, getSession, saveSession, uploadFiles } from '../lib/slides-server-api'
+import { getModels, setModel, getSession, saveSession, uploadFiles, listIndustries, type IndustryEntry } from '../lib/slides-server-api'
 import ThinkingDots from './ThinkingDots'
 import ToolBlock from './ToolBlock'
 import QuestionBlock from './QuestionBlock'
@@ -45,6 +45,8 @@ interface ChatPanelProps {
   activeSkill?: string
   activeDesign?: string
   onDesignChange?: (name: string) => Promise<string>
+  activeIndustry?: string
+  onIndustryChange?: (name: string) => Promise<string>
   onHtmlGenerated: (path: string) => void
   modelRefreshToken?: number
 }
@@ -54,7 +56,7 @@ interface AtReference {
   name: string
 }
 
-export default function ChatPanel({ workspacePath, activeSkill, activeDesign, onDesignChange, onHtmlGenerated, modelRefreshToken }: ChatPanelProps) {
+export default function ChatPanel({ workspacePath, activeSkill, activeDesign, onDesignChange, activeIndustry, onIndustryChange, onHtmlGenerated, modelRefreshToken }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [sending, setSending] = useState(false)
   const [input, setInput] = useState('')
@@ -79,6 +81,11 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
 
   // Design button
   const [designModalOpen, setDesignModalOpen] = useState(false)
+
+  // Industry dropdown
+  const [industries, setIndustries] = useState<IndustryEntry[]>([])
+  const [industryOpen, setIndustryOpen] = useState(false)
+  const industryDropdownRef = useRef<HTMLDivElement>(null)
 
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
@@ -109,6 +116,11 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
     }).catch(() => {})
   }, [modelRefreshToken])
 
+  // ── Load industries ────────────────────────────────────────────────────
+  useEffect(() => {
+    listIndustries().then(setIndustries).catch(() => {})
+  }, [])
+
   // Keep refs in sync so SSE callbacks always read the latest values
   useEffect(() => { sessionIdRef.current = sessionId }, [sessionId])
   useEffect(() => { messagesRef.current = messages }, [messages])
@@ -123,6 +135,17 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
     if (modelOpen) document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [modelOpen])
+
+  // Close industry dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (industryDropdownRef.current && !industryDropdownRef.current.contains(e.target as Node)) {
+        setIndustryOpen(false)
+      }
+    }
+    if (industryOpen) document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [industryOpen])
 
   async function handleModelSelect(modelID: string) {
     const prev = currentModel
@@ -145,6 +168,36 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
     // Auto-send a message so the agent actively acknowledges the new design
     if (sessionId) {
       const text = `I've switched to the "${name}" design. Please use this visual style for all future slide generation.`
+      setMessages((prev) => [...prev, {
+        id: `u-${Date.now()}`,
+        role: 'user',
+        text,
+        streaming: false,
+        error: null,
+        timestamp: new Date(),
+        tools: [],
+      }])
+      setSending(true)
+      try {
+        await sendPrompt(sessionId, text, currentModel || undefined, currentMode, undefined, newSkill || undefined)
+      } catch (e) {
+        setChatError((e as Error).message)
+        setSending(false)
+      }
+    }
+  }
+
+  async function handleIndustrySelect(name: string) {
+    if (name === activeIndustry) {
+      setIndustryOpen(false)
+      return
+    }
+    setIndustryOpen(false)
+    // Fetch new skill (with industry context), get it back directly
+    const newSkill = onIndustryChange ? await onIndustryChange(name) : (activeSkill || undefined)
+    // Auto-send a message so the agent acknowledges the industry switch
+    if (sessionId) {
+      const text = `I've switched to the "${name}" industry context. Please follow the industry-specific report structure and terminology for all future slide generation.`
       setMessages((prev) => [...prev, {
         id: `u-${Date.now()}`,
         role: 'user',
@@ -868,6 +921,82 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
     </button>
   ) : null
 
+  // ── Industry pill ──────────────────────────────────────────────────────
+  const industryPill = onIndustryChange && industries.length > 1 ? (
+    <div className="relative" ref={industryDropdownRef}>
+      <button
+        onClick={() => setIndustryOpen((o) => !o)}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] transition-colors"
+        style={{
+          color: activeIndustry && activeIndustry !== 'general' ? '#6366f1' : 'var(--text-muted)',
+          border: activeIndustry && activeIndustry !== 'general'
+            ? '1px solid rgba(99,102,241,0.3)'
+            : '1px solid var(--border)',
+          background: activeIndustry && activeIndustry !== 'general'
+            ? 'rgba(99,102,241,0.08)'
+            : 'var(--bg-surface)',
+          fontFamily: 'inherit',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.background = activeIndustry && activeIndustry !== 'general' ? 'rgba(99,102,241,0.14)' : 'var(--bg-hover)')}
+        onMouseLeave={e => (e.currentTarget.style.background = activeIndustry && activeIndustry !== 'general' ? 'rgba(99,102,241,0.08)' : 'var(--bg-surface)')}
+        title="Switch industry context"
+      >
+        <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+        <span className="truncate max-w-[140px]">
+          {activeIndustry || 'general'}
+        </span>
+        <svg
+          className="w-2.5 h-2.5 flex-shrink-0 transition-transform"
+          style={{ transform: industryOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {industryOpen && industries.length > 0 && (
+        <div
+          className="absolute bottom-full mb-1 left-0 z-50 rounded-xl py-1 overflow-y-auto"
+          style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+            minWidth: '220px',
+            maxHeight: '260px',
+          }}
+        >
+          {industries.map((ind) => (
+            <button
+              key={ind.name}
+              onClick={() => handleIndustrySelect(ind.name)}
+              className="w-full text-left px-3 py-1.5 text-[11px] transition-colors flex items-center gap-2"
+              style={{
+                color: ind.name === activeIndustry ? 'var(--text-primary)' : 'var(--text-secondary)',
+                fontWeight: ind.name === activeIndustry ? 500 : 400,
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              {ind.name === activeIndustry
+                ? <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--green-dot)' }} />
+                : <span className="w-1.5 h-1.5 flex-shrink-0" />
+              }
+              <span className="flex-1 truncate">{ind.name}</span>
+              {ind.description && (
+                <span className="text-[9px] truncate max-w-[120px]" style={{ color: 'var(--text-muted)' }}>
+                  {ind.description}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  ) : null
+
   // ── Model pill ───────────────────────────────────────────────────────────
   const modelPill = (
     <div className="relative" ref={modelDropdownRef}>
@@ -986,6 +1115,7 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
           <div style={{ width: '100%', maxWidth: '560px' }}>
             {inputBox}
             <div className="mt-2 flex justify-start gap-2">
+              {industryPill}
               {designButton}
               {modelPill}
             </div>
@@ -1037,6 +1167,7 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
           <div className="flex-shrink-0 px-4 pb-4 pt-2">
             {inputBox}
             <div className="mt-2 flex justify-start gap-2">
+              {industryPill}
               {designButton}
               {modelPill}
             </div>

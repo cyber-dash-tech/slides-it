@@ -188,20 +188,29 @@ class DesignManager:
             raise ValueError(f"Design '{design_name}' has no DESIGN.md")
         return info.skill_text
 
-    def build_prompt(self, design_name: str | None = None) -> str:
+    def build_prompt(self, design_name: str | None = None, industry_name: str | None = None) -> str:
         """
-        Concatenate core SKILL.md + design context into a combined system prompt.
+        Concatenate core SKILL.md + industry context + design context into a
+        combined system prompt.
+
+        Three-layer prompt architecture:
+          1. SKILL.md — core protocol (conversation flow, HTML rules, content quality)
+          2. INDUSTRY.md — industry definition (report structure, AI logic, terminology)
+          3. DESIGN.md — visual style (colors, fonts, animations, layout variants)
 
         Injects the active design name and path so the agent can reference
         preview.html and DESIGN.md directly from ~/.config/slides-it/designs/.
 
         Args:
             design_name: Design to use. Defaults to the active design.
+            industry_name: Industry to use. Defaults to the active industry.
 
         Returns:
             Full system prompt string ready to pass as the `system` field in
             POST /session/:id/prompt_async.
         """
+        from slides_it.industries import IndustryManager
+
         name = design_name or self.active()
         core_skill = (
             pathlib.Path(__file__).parent / "skill" / "SKILL.md"
@@ -210,16 +219,29 @@ class DesignManager:
         design_dir = DESIGNS_DIR / name
         has_preview = (design_dir / "preview.html").exists()
         if has_preview:
-            preview_line = f"<!--   - preview.html — canonical visual reference (read this before generating slides) -->"
+            preview_line = "<!--   - preview.html — canonical visual reference (read this before generating slides) -->"
         else:
-            preview_line = f"<!--   - (no preview.html for this design) -->"
+            preview_line = "<!--   - (no preview.html for this design) -->"
+
+        # Resolve industry
+        im = IndustryManager()
+        ind_name = industry_name or im.active()
+        industry_skill = im.get_skill_md(ind_name)
+
         design_header = (
             f"<!-- Active design: {name} -->\n"
+            f"<!-- Active industry: {ind_name} -->\n"
             f"<!-- Design files: {design_dir}/ -->\n"
             f"<!--   - DESIGN.md — metadata + style instructions (injected below) -->\n"
             f"{preview_line}\n\n"
         )
-        return f"{design_header}{core_skill}\n\n---\n\n{design_skill}"
+
+        # Three-layer concatenation: SKILL → Industry → Design
+        parts = [design_header, core_skill]
+        if industry_skill:
+            parts.append(f"\n\n---\n\n{industry_skill}")
+        parts.append(f"\n\n---\n\n{design_skill}")
+        return "".join(parts)
 
     # ------------------------------------------------------------------
     # Private helpers

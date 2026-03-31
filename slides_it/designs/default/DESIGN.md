@@ -123,9 +123,11 @@ body::after {
 
 ### Slide Layout
 
-- Full-viewport slides (`height: 100vh`, `scroll-snap-align: start`)
+- Full-viewport slides (`height: 100dvh`, `scroll-snap-align: start`)
+- 16:9 aspect ratio enforced via `.slide-inner`:
+  - Default: `max-width: min(960px, calc(100dvh * 16 / 9))` — for Cover, Quote, Closing
+  - Wide: `max-width: min(1120px, calc(100dvh * 16 / 9))` — for Feature Cards, Stats Row, Two-Column, Step Flow (add `.wide` class)
 - Generous padding: `clamp(2rem, 5vw, 5rem)`
-- Content centered with `max-width: 960px; margin: 0 auto`
 - Title slide: large centered heading + glowing accent line beneath
 - Content slides: heading top-left, content below with glassmorphism cards
 
@@ -171,42 +173,42 @@ body::after {
 - **Card hover**: smooth `transform` + `box-shadow` transition (0.3s)
 - **Progress bar**: thin `3px` line at top, gradient from `var(--accent)` to `var(--accent-2)`
 - Trigger all entrance animations via `.visible` class added via `IntersectionObserver`
+- Cover slide title: combine `translateY` + subtle `scale(0.97 → 1)` for a weight-drop feel
+- Numeric data (percentages, dollar amounts, counts): JS counter animation counting from 0 to target on slide enter
+- List items must stagger — never reveal all items simultaneously
 
-### Icons
+### Icons & Graphic Elements
 
-Use Heroicons (outline style) for all iconography.
+- Load Lucide icons via CDN: `<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.js"></script>`
+- Icon color: `var(--accent)`, size: `2rem`, hover: `scale(1.15)` transition
+- Every content slide must include at least one of:
+  - A Lucide icon relevant to the slide topic
+  - A decorative accent line, left border stripe, or geometric shape using the accent color
+  - Numbered circle badges for step/process slides
+  - A subtle background shape (low opacity, does not interfere with readability)
 
-**CDN link (add in `<head>`):**
-```html
-<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.js"></script>
-```
+### Slide Layout Variants
 
-**Usage:**
-- Size: `24px` default, use Tailwind-style classes like `w-8 h-8`
-- Color: inherits from `currentColor` — set via CSS `color` property on parent
-- Animate on hover: `transform: scale(1.1)` + `transition: transform 0.2s ease`
+Use these layout patterns based on content type. All use glassmorphism cards with
+`backdrop-filter: blur(12px)` and the aurora color palette.
 
-**Example — feature card:**
-```html
-<div class="feature-card">
-    <i data-lucide="rocket-launch" class="feature-icon"></i>
-    <div class="feature-title">Fast Launch</div>
-    <div class="feature-desc">Deploy in seconds, scale automatically.</div>
-</div>
-```
+**Stats Row** — 3-column grid of glassmorphism stat cards, large numbers in
+`var(--accent)` with glow shadow, counter animation on slide enter.
 
-```css
-.feature-icon {
-    width: 2rem;
-    height: 2rem;
-    color: var(--accent);
-    margin-bottom: 0.75rem;
-    transition: transform 0.2s ease;
-}
-.feature-card:hover .feature-icon {
-    transform: scale(1.15);
-}
-```
+**Two-Column** — left: heading + body text, right: glassmorphism card with
+supporting evidence. Gap: `clamp(2rem, 4vw, 4rem)`.
+
+**Step Flow** — horizontal process with numbered circles in gradient
+(`var(--accent)` → `var(--accent-2)`), connector lines with subtle glow.
+
+**Feature Cards** — 2×2 grid of glassmorphism cards, each with Lucide icon in
+`var(--accent)`, accent top border using gradient.
+
+**Quote Block** — large text with `border-left: 3px solid var(--accent)`,
+subtle text glow, on a dark transparent card.
+
+**Full-bleed Dark Callout** — single powerful statement, `--bg-primary` background
+with aurora ribbons more visible, large gradient text. Use max once per deck.
 
 ### Code Blocks (if any)
 

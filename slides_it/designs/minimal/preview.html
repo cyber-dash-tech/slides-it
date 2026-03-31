@@ -8,6 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.js"></script>
 <style>
+/* ===========================================
+   CSS CUSTOM PROPERTIES — Minimal Theme
+   =========================================== */
 :root {
   --bg-primary:    #FAF9F6;
   --bg-secondary:  #F0EEE8;
@@ -29,7 +32,9 @@ html {
   height: 100%;
 }
 
-/* Background Layers */
+/* ===========================================
+   BACKGROUND LAYERS — Subtle geometric depth
+   =========================================== */
 body::before {
   content: '';
   position: fixed;
@@ -46,29 +51,20 @@ body::before {
   z-index: -2;
   pointer-events: none;
 }
-
 .geo-shape-1 {
-  width: 600px;
-  height: 600px;
+  width: 600px; height: 600px;
   background: #FFB347;
-  top: -200px;
-  right: -100px;
+  top: -200px; right: -100px;
 }
-
 .geo-shape-2 {
-  width: 400px;
-  height: 400px;
+  width: 400px; height: 400px;
   background: #FFA633;
-  bottom: -100px;
-  left: -100px;
+  bottom: -100px; left: -100px;
 }
-
 .geo-shape-3 {
-  width: 300px;
-  height: 300px;
+  width: 300px; height: 300px;
   background: #EE9526;
-  top: 50%;
-  left: 30%;
+  top: 50%; left: 30%;
   opacity: 0.25;
 }
 
@@ -95,10 +91,11 @@ body {
   height: 100%;
 }
 
-/* Progress bar */
+/* ===========================================
+   PROGRESS BAR & NAV DOTS
+   =========================================== */
 .progress-bar {
-  position: fixed;
-  top: 0; left: 0;
+  position: fixed; top: 0; left: 0;
   height: 2px;
   background: var(--border-strong);
   width: 0%;
@@ -106,7 +103,6 @@ body {
   transition: width 0.2s ease;
 }
 
-/* Nav dots */
 .nav-dots {
   position: fixed;
   right: clamp(1rem, 2vw, 1.5rem);
@@ -117,50 +113,55 @@ body {
   gap: 8px;
   z-index: 100;
 }
-
 .nav-dots button {
   width: 6px; height: 6px;
   border-radius: 50%;
   border: 1px solid var(--border-strong);
   background: transparent;
-  cursor: pointer;
-  padding: 0;
+  cursor: pointer; padding: 0;
   transition: background 0.2s;
 }
-
 .nav-dots button.active {
   background: var(--text-primary);
   border-color: var(--text-primary);
 }
 
-/* Slides */
+/* ===========================================
+   SLIDE BASE — 16:9 aspect ratio enforced
+   =========================================== */
 .slide {
-  height: 100vh;
-  height: 100dvh;
+  height: 100vh; height: 100dvh;
   scroll-snap-align: start;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.slide-inner {
+  width: 100%;
+  max-width: min(880px, calc(100dvh * 16 / 9));
+  max-height: 100dvh;
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: clamp(2.5rem, 6vw, 6rem);
 }
-
-.slide-inner {
-  max-width: 880px;
-  margin: 0 auto;
-  width: 100%;
+.slide-inner.wide {
+  max-width: min(1060px, calc(100dvh * 16 / 9));
 }
 
-/* Reveal animation - subtle opacity only */
+/* ===========================================
+   REVEAL ANIMATIONS — opacity only, no translateY
+   =========================================== */
 .reveal {
   opacity: 0;
   transition: opacity 0.4s ease;
 }
-
 .reveal.visible {
   opacity: 1;
 }
-
 .reveal:nth-child(1) { transition-delay: 0s; }
 .reveal:nth-child(2) { transition-delay: 0.06s; }
 .reveal:nth-child(3) { transition-delay: 0.12s; }
@@ -175,53 +176,46 @@ body {
   }
 }
 
-/* Typography */
+/* ===========================================
+   TYPOGRAPHY
+   =========================================== */
 .label {
   font-size: 0.7rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
-  font-family: 'DM Sans', sans-serif;
   font-weight: 400;
 }
-
 h1 {
   font-family: 'DM Serif Display', serif;
   font-size: clamp(2.2rem, 5vw, 4rem);
   font-weight: 400;
   line-height: 1.15;
   letter-spacing: -0.02em;
-  color: var(--text-primary);
 }
-
 h2 {
   font-family: 'DM Serif Display', serif;
   font-size: clamp(1.6rem, 3vw, 2.6rem);
   font-weight: 400;
   line-height: 1.2;
   letter-spacing: -0.01em;
-  color: var(--text-primary);
 }
-
 .subtitle {
   font-size: clamp(1rem, 1.8vw, 1.35rem);
   color: var(--text-secondary);
   font-weight: 300;
   line-height: 1.6;
 }
-
 .body-text {
   font-size: clamp(0.85rem, 1.2vw, 1rem);
   color: var(--text-secondary);
   line-height: 1.75;
 }
-
 .divider {
   border: none;
   border-top: 1px solid var(--border);
   margin: 1.5rem 0;
 }
-
 .heading-rule {
   border: none;
   border-bottom: 1px solid var(--border);
@@ -229,13 +223,14 @@ h2 {
   margin-bottom: 1.5rem;
 }
 
-/* Card grid */
+/* ===========================================
+   LAYOUT VARIANT: Feature Cards (3-col)
+   =========================================== */
 .card-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
 }
-
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -244,24 +239,17 @@ h2 {
   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
-
 .card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
-
 .card-icon {
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 1.75rem; height: 1.75rem;
   color: var(--accent-2);
   margin-bottom: 0.5rem;
   transition: transform 0.2s ease;
 }
-
-.card:hover .card-icon {
-  transform: scale(1.05);
-}
-
+.card:hover .card-icon { transform: scale(1.05); }
 .card-label {
   font-size: 0.7rem;
   letter-spacing: 0.08em;
@@ -269,57 +257,34 @@ h2 {
   color: var(--text-muted);
   margin-bottom: 0.5rem;
 }
-
 .card-title {
   font-family: 'DM Serif Display', serif;
   font-size: clamp(1rem, 1.8vw, 1.4rem);
-  color: var(--text-primary);
   margin-bottom: 0.5rem;
 }
-
 .card-body {
   font-size: 0.85rem;
   color: var(--text-secondary);
   line-height: 1.6;
 }
 
-/* Bullet list */
-.bullet-list {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+/* ===========================================
+   LAYOUT VARIANT: Stats Row
+   =========================================== */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(1rem, 2vw, 2rem);
 }
-
-.bullet-list li {
-  display: flex;
-  gap: 0.75rem;
-  font-size: clamp(0.9rem, 1.3vw, 1.05rem);
-  color: var(--text-secondary);
-  line-height: 1.6;
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: clamp(1.5rem, 2.5vw, 2.5rem);
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  border-bottom: 2px solid var(--border-strong);
 }
-
-.bullet-list li::before {
-  content: "—";
-  color: var(--border-strong);
-  flex-shrink: 0;
-  font-family: 'DM Serif Display', serif;
-}
-
-/* Big stat */
-.stat-row {
-  display: flex;
-  gap: 3rem;
-  align-items: flex-end;
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
 .stat-number {
   font-family: 'DM Serif Display', serif;
   font-size: clamp(2.5rem, 5vw, 4rem);
@@ -327,36 +292,116 @@ h2 {
   color: var(--text-primary);
   line-height: 1;
   letter-spacing: -0.03em;
+  margin-bottom: 0.5rem;
 }
-
-.stat-desc {
-  font-size: 0.8rem;
+.stat-label {
+  font-size: clamp(0.7rem, 1vw, 0.85rem);
   color: var(--text-muted);
-  letter-spacing: 0.05em;
   text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-/* Quote */
-.blockquote {
+/* ===========================================
+   LAYOUT VARIANT: Two-Column
+   =========================================== */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(2rem, 4vw, 4rem);
+  align-items: start;
+}
+.two-col-main h2 {
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  margin-bottom: 1rem;
+}
+.two-col-main p {
+  font-size: clamp(0.85rem, 1.1vw, 1rem);
+  color: var(--text-secondary);
+  line-height: 1.75;
+}
+.evidence-list {
+  list-style: none; padding: 0;
+  display: flex; flex-direction: column;
+  gap: 0.65rem;
+}
+.evidence-list li {
+  padding-left: 1.1rem; position: relative;
+  font-size: clamp(0.85rem, 1.1vw, 1rem);
+  color: var(--text-primary); line-height: 1.5;
+}
+.evidence-list li::before {
+  content: '—';
+  position: absolute; left: 0; top: 0;
+  color: var(--border-strong);
+  font-family: 'DM Serif Display', serif;
+}
+
+/* ===========================================
+   LAYOUT VARIANT: Step Flow
+   =========================================== */
+.step-flow {
+  display: flex;
+  align-items: flex-start;
+}
+.step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+}
+.step-circle {
+  width: clamp(2.5rem, 4vw, 3.5rem);
+  height: clamp(2.5rem, 4vw, 3.5rem);
+  border-radius: 50%;
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(1rem, 1.5vw, 1.4rem);
+  font-weight: 400;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.step-connector {
+  flex: 0 0 2rem;
+  height: 1px;
+  background: var(--border);
+  margin-top: clamp(1.25rem, 2vw, 1.75rem);
+  align-self: flex-start;
+}
+.step-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+}
+.step-desc {
+  font-size: clamp(0.75rem, 0.9vw, 0.875rem);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 140px;
+}
+
+/* ===========================================
+   LAYOUT VARIANT: Quote Block
+   =========================================== */
+.quote-block {
   border-left: 2px solid var(--border-strong);
   padding-left: 1.5rem;
 }
-
-.blockquote p {
+.quote-block blockquote {
   font-family: 'DM Serif Display', serif;
   font-size: clamp(1.3rem, 2.5vw, 2rem);
   font-style: italic;
-  color: var(--text-primary);
   line-height: 1.4;
   margin-bottom: 1rem;
 }
-
-.blockquote cite {
+.quote-block cite {
   font-size: 0.8rem;
   color: var(--text-muted);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   font-style: normal;
+  font-family: 'DM Sans', sans-serif;
 }
 </style>
 </head>
@@ -370,7 +415,9 @@ h2 {
 <div class="progress-bar" id="progressBar"></div>
 <nav class="nav-dots" id="navDots" aria-label="Slide navigation"></nav>
 
-<!-- Slide 1: Title -->
+<!-- ==============================
+     SLIDE 1: Cover
+     ============================== -->
 <section class="slide" data-index="0">
   <div class="slide-inner">
     <p class="label reveal">slides-it · minimal theme</p>
@@ -382,9 +429,11 @@ h2 {
   </div>
 </section>
 
-<!-- Slide 2: Three columns with icons -->
+<!-- ==============================
+     SLIDE 2: Feature Cards (3-col)
+     ============================== -->
 <section class="slide" data-index="1">
-  <div class="slide-inner">
+  <div class="slide-inner wide">
     <h2 class="heading-rule reveal">Three principles</h2>
     <div class="card-grid reveal">
       <div class="card">
@@ -409,62 +458,130 @@ h2 {
   </div>
 </section>
 
-<!-- Slide 3: Bullet list -->
+<!-- ==============================
+     SLIDE 3: Stats Row (no counter, static fade-in)
+     ============================== -->
 <section class="slide" data-index="2">
-  <div class="slide-inner">
-    <p class="label reveal">What makes it work</p>
-    <h2 class="reveal" style="margin: 0.75rem 0 1.5rem">Design decisions<br>that matter</h2>
-    <ul class="bullet-list">
-      <li class="reveal">Subtle geometric shapes add depth without overwhelming</li>
-      <li class="reveal">Serif headings contrast with humanist sans body text for natural hierarchy</li>
-      <li class="reveal">Warm off-white background reduces eye strain across long presentations</li>
-      <li class="reveal">Monochrome accent palette eliminates distracting color decisions</li>
-    </ul>
-  </div>
-</section>
-
-<!-- Slide 4: Stats -->
-<section class="slide" data-index="3">
-  <div class="slide-inner">
+  <div class="slide-inner wide">
     <p class="label reveal">By the numbers</p>
     <hr class="divider reveal">
-    <div class="stat-row reveal">
-      <div class="stat">
-        <span class="stat-number">∞</span>
-        <span class="stat-desc">Topics it suits</span>
+    <div class="stats-row reveal">
+      <div class="stat-card">
+        <div class="stat-number">∞</div>
+        <div class="stat-label">Topics it suits</div>
       </div>
-      <div class="stat">
-        <span class="stat-number">0</span>
-        <span class="stat-desc">Gradients used</span>
+      <div class="stat-card">
+        <div class="stat-number">0</div>
+        <div class="stat-label">Gradients used</div>
       </div>
-      <div class="stat">
-        <span class="stat-number">1</span>
-        <span class="stat-desc">Idea per slide</span>
+      <div class="stat-card">
+        <div class="stat-number">1</div>
+        <div class="stat-label">Idea per slide</div>
       </div>
     </div>
-    <hr class="divider reveal" style="margin-top: 2.5rem">
+    <hr class="divider reveal" style="margin-top:2rem">
     <p class="body-text reveal">The best slide is the one that makes your point impossible to miss.</p>
   </div>
 </section>
 
-<!-- Slide 5: Quote / closing -->
+<!-- ==============================
+     SLIDE 4: Two-Column
+     ============================== -->
+<section class="slide" data-index="3">
+  <div class="slide-inner wide">
+    <div class="two-col reveal">
+      <div class="two-col-main">
+        <p class="label" style="margin-bottom:0.75rem">Key finding</p>
+        <h2>Typography creates hierarchy without decoration</h2>
+        <p style="margin-top:1rem">The contrast between DM Serif Display headings and DM Sans body text establishes a natural visual order. No colors, borders, or effects needed.</p>
+      </div>
+      <div>
+        <div class="card">
+          <p class="card-label">Evidence</p>
+          <ul class="evidence-list">
+            <li>Serif vs sans-serif creates instant hierarchy</li>
+            <li>Weight contrast (400 vs 300) guides the eye</li>
+            <li>Generous line-height aids long-form reading</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==============================
+     SLIDE 5: Step Flow
+     ============================== -->
 <section class="slide" data-index="4">
+  <div class="slide-inner wide">
+    <p class="label reveal">Process</p>
+    <h2 class="reveal" style="margin: 0.5rem 0 2rem">From idea to presentation</h2>
+    <div class="step-flow reveal">
+      <div class="step">
+        <div class="step-circle">1</div>
+        <div class="step-title">Describe</div>
+        <div class="step-desc">Tell the AI your topic and audience</div>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step">
+        <div class="step-circle">2</div>
+        <div class="step-title">Generate</div>
+        <div class="step-desc">AI creates a complete HTML deck</div>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step">
+        <div class="step-circle">3</div>
+        <div class="step-title">Refine</div>
+        <div class="step-desc">Request changes in plain language</div>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step">
+        <div class="step-circle">4</div>
+        <div class="step-title">Present</div>
+        <div class="step-desc">Open the file and go</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==============================
+     SLIDE 6: Quote Block
+     ============================== -->
+<section class="slide" data-index="5">
   <div class="slide-inner">
-    <div class="blockquote reveal">
-      <p>"Perfection is achieved not when there is nothing more to add, but when there is nothing left to take away."</p>
+    <div class="quote-block reveal">
+      <blockquote>"Perfection is achieved not when there is nothing more to add, but when there is nothing left to take away."</blockquote>
       <cite>Antoine de Saint-Exupéry</cite>
     </div>
-    <hr class="divider reveal" style="margin-top: 2.5rem">
-    <p class="label reveal">slides-it · minimal theme · generated with AI</p>
+    <hr class="divider reveal" style="margin-top:2.5rem">
+    <p class="body-text reveal">Great presentations subtract. Every removed element makes the remaining ones stronger.</p>
+  </div>
+</section>
+
+<!-- ==============================
+     SLIDE 7: Closing
+     ============================== -->
+<section class="slide" data-index="6">
+  <div class="slide-inner">
+    <hr class="divider reveal">
+    <h1 class="reveal"><em>Thank you</em></h1>
+    <p class="subtitle reveal" style="margin-top:1rem">Questions?</p>
+    <hr class="divider reveal" style="margin-top:2rem">
+    <p class="label reveal" style="margin-top:2rem">slides-it · minimal theme · generated with AI</p>
   </div>
 </section>
 
 <script>
-// Initialize icons
+/* ===========================================
+   INITIALIZE LUCIDE ICONS
+   =========================================== */
 if (typeof lucide !== 'undefined') {
   lucide.createIcons();
 }
 
+/* ===========================================
+   SLIDE PRESENTATION CONTROLLER
+   =========================================== */
 class SlidePresentation {
   constructor() {
     this.slides = document.querySelectorAll('.slide');

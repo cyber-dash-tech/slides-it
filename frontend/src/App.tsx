@@ -6,7 +6,7 @@ import FileTree from './components/FileTree'
 import WorkspaceSelector from './components/WorkspaceSelector'
 import SettingsModal from './components/SettingsModal'
 import ErrorBoundary from './components/ErrorBoundary'
-import { getDesignSkill, getStatus } from './lib/slides-server-api'
+import { getDesignSkill, getStatus, activateIndustry as apiActivateIndustry } from './lib/slides-server-api'
 
 type Page = 'workspace' | 'chat' | 'loading'
 
@@ -15,11 +15,22 @@ export default function App() {
   const [agentVersion, setAgentVersion] = useState('')
   const [workspacePath, setWorkspacePath] = useState('')
   const [activeDesign, setActiveDesign] = useState('default')
+  const [activeIndustry, setActiveIndustry] = useState('general')
   const [activeSkill, setActiveSkill] = useState('')
   const [previewFile, setPreviewFile] = useState<string | null>(null)
   const [fileTreeRefreshToken, setFileTreeRefreshToken] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [modelRefreshToken, setModelRefreshToken] = useState(0)
+
+  // Helper: fetch the combined system prompt for the given design + industry
+  async function fetchSkill(design: string, industry: string): Promise<string> {
+    try {
+      const r = await getDesignSkill(design, industry)
+      return r.skill
+    } catch {
+      return activeSkill
+    }
+  }
 
   // On mount: check if the server is already running with an active workspace.
   // If so, skip the workspace selector and go directly to chat.
@@ -29,7 +40,7 @@ export default function App() {
         if (s.ready && s.workspace) {
           setWorkspacePath(s.workspace)
           setAgentVersion(s.opencode_version)
-          getDesignSkill('default').then((r) => setActiveSkill(r.skill)).catch(() => {})
+          fetchSkill('default', 'general').then((skill) => setActiveSkill(skill))
           setPage('chat')
         } else {
           setPage('workspace')
@@ -44,19 +55,23 @@ export default function App() {
     setWorkspacePath(workspace)
     setAgentVersion(version)
     setPage('chat')
-    // Load the default design skill on workspace start
-    getDesignSkill('default').then((r) => setActiveSkill(r.skill)).catch(() => {})
+    // Load the default design + industry skill on workspace start
+    fetchSkill('default', 'general').then((skill) => setActiveSkill(skill))
   }
 
   async function handleDesignChange(name: string): Promise<string> {
     setActiveDesign(name)
-    try {
-      const r = await getDesignSkill(name)
-      setActiveSkill(r.skill)
-      return r.skill
-    } catch {
-      return activeSkill
-    }
+    const skill = await fetchSkill(name, activeIndustry)
+    setActiveSkill(skill)
+    return skill
+  }
+
+  async function handleIndustryChange(name: string): Promise<string> {
+    setActiveIndustry(name)
+    await apiActivateIndustry(name)
+    const skill = await fetchSkill(activeDesign, name)
+    setActiveSkill(skill)
+    return skill
   }
 
   function toRelative(absPath: string): string {
@@ -118,6 +133,8 @@ export default function App() {
             activeSkill={activeSkill}
             activeDesign={activeDesign}
             onDesignChange={handleDesignChange}
+            activeIndustry={activeIndustry}
+            onIndustryChange={handleIndustryChange}
             modelRefreshToken={modelRefreshToken}
             onHtmlGenerated={(path) => {
               setPreviewFile(toRelative(path))

@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from slides_it.designs import DesignManager
+from slides_it.industries import IndustryManager
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -151,6 +152,34 @@ class InstallDesignRequest(BaseModel):
     skill_md: str = ""       # full SKILL.md content
     preview_html: str = ""   # full preview.html content (may be empty)
     activate: bool = False   # if True, activate this design after installing
+
+
+class IndustryEntry(BaseModel):
+    name: str
+    description: str
+    author: str
+    version: str
+    active: bool
+
+
+class IndustryDetail(BaseModel):
+    name: str
+    description: str
+    author: str
+    version: str
+    active: bool
+    skill_md: str
+
+
+class InstallIndustryRequest(BaseModel):
+    # Mode A: install from external source (URL, github:user/repo, local path)
+    source: str = ""
+
+    # Mode B: install from inline content
+    name: str = ""           # kebab-case industry name, e.g. "deeptech-investment"
+    description: str = ""
+    skill_md: str = ""       # full INDUSTRY.md body content
+    activate: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -389,18 +418,23 @@ def set_model(body: dict[str, str]) -> dict[str, str]:
 
 
 @app.get("/api/design/{name}/skill")
-def get_design_skill(name: str) -> dict[str, str]:
+def get_design_skill(name: str, industry: str = Query(default="")) -> dict[str, str]:
     """
     Return the combined system prompt for the given design.
 
-    Concatenates core SKILL.md + design skill text from DESIGN.md. The frontend sends this
-    as the `system` field in POST /session/:id/prompt_async so that the active
-    design's visual style is injected on every message without touching any
-    config files on disk.
+    Concatenates core SKILL.md + industry INDUSTRY.md + design DESIGN.md.
+    The frontend sends this as the `system` field in POST /session/:id/prompt_async
+    so that the active design's visual style and industry context are injected
+    on every message without touching any config files on disk.
+
+    Args:
+        name: Design name.
+        industry: Industry name (optional, defaults to active industry).
     """
     dm = DesignManager()
+    industry_name = industry if industry else None
     try:
-        skill = dm.build_prompt(name)
+        skill = dm.build_prompt(name, industry_name=industry_name)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"skill": skill}
@@ -583,6 +617,158 @@ def activate_design(name: str) -> dict[str, str]:
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"name": name, "status": "activated"}
+
+
+# ---------------------------------------------------------------------------
+# Industry API routes
+# ---------------------------------------------------------------------------
+
+@app.get("/api/industries", response_model=list[IndustryEntry])
+def list_industries() -> list[IndustryEntry]:
+    """Return all installed industries with metadata."""
+    im = IndustryManager()
+    active = im.active()
+    result = []
+    for info in im.list():
+        result.append(IndustryEntry(
+            name=info.name,
+            description=info.description,
+            author=info.author,
+            version=info.version,
+            active=info.name == active,
+        ))
+    return result
+
+
+@app.get("/api/industry/{name}", response_model=IndustryDetail)
+def get_industry(name: str) -> IndustryDetail:
+    """Return full details for a single industry — metadata and skill text."""
+    im = IndustryManager()
+    path = im._industry_path(name)
+    if not path:
+        raise HTTPException(status_code=404, detail=f"Industry '{name}' not found")
+    info = im._parse_industry_file(path / "INDUSTRY.md")
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Industry '{name}' has no INDUSTRY.md")
+    return IndustryDetail(
+        name=info.name,
+        description=info.description,
+        author=info.author,
+        version=info.version,
+        active=info.name == im.active(),
+        skill_md=info.skill_text,
+    )
+
+
+@app.get("/api/industry/{name}/skill")
+def get_industry_skill(name: str) -> dict[str, str]:
+    """Return the raw skill text body from INDUSTRY.md for a given industry."""
+    im = IndustryManager()
+    try:
+        skill = im.get_skill_md(name)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"skill": skill}
+
+
+@app.put("/api/industries/{name}/activate")
+def activate_industry(name: str) -> dict[str, str]:
+    """Set the active industry."""
+    im = IndustryManager()
+    try:
+        im.activate(name)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"name": name, "status": "activated"}
+
+
+@app.post("/api/industries/install")
+def install_industry(req: InstallIndustryRequest) -> dict[str, str]:
+    """
+    Install an industry — two modes:
+
+    Mode A (source): install from any external source.
+        { "source": "https://...", "activate": true }
+        { "source": "github:user/repo" }
+
+    Mode B (inline): install from content generated by the AI agent or user.
+        {
+          "name": "biotech-pharma",
+          "description": "Biotech & pharmaceutical industry",
+          "skill_md": "## Report Structure...",
+          "activate": true
+        }
+    """
+    im = IndustryManager()
+
+    if req.source.strip():
+        # ── Mode A: external source ───────────────────────────────────────
+        source = req.source.strip()
+        try:
+            name = im.install(source)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        if req.activate:
+            try:
+                im.activate(name)
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        return {"name": name, "status": "installed", "activated": str(req.activate).lower()}
+
+    else:
+        # ── Mode B: inline content ───────────────────────────────────────
+        name = req.name.strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="'name' is required when 'source' is empty")
+        if not req.skill_md.strip():
+            raise HTTPException(status_code=400, detail="'skill_md' is required when 'source' is empty")
+
+        # Validate name: kebab-case, no path traversal
+        import re as _re
+        if not _re.match(r'^[a-z0-9]+(?:-[a-z0-9]+)*$', name):
+            raise HTTPException(
+                status_code=400,
+                detail="'name' must be kebab-case (lowercase letters, digits, hyphens only)",
+            )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = pathlib.Path(tmp)
+
+            # Write INDUSTRY.md — YAML frontmatter + skill text body in one file
+            industry_md = (
+                "---\n"
+                f"name: {name}\n"
+                f"description: {req.description.strip() or 'User-defined industry'}\n"
+                "author: user\n"
+                "version: 1.0.0\n"
+                "---\n\n"
+                f"{req.skill_md}"
+            )
+            (tmp_path / "INDUSTRY.md").write_text(industry_md, encoding="utf-8")
+
+            try:
+                installed_name = im.install(str(tmp_path))
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=str(e))
+
+        if req.activate:
+            try:
+                im.activate(installed_name)
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+
+        return {"name": installed_name, "status": "installed", "activated": str(req.activate).lower()}
+
+
+@app.delete("/api/industries/{name}")
+def delete_industry(name: str) -> dict[str, str]:
+    """Remove an installed industry."""
+    im = IndustryManager()
+    try:
+        im.remove(name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"name": name, "status": "removed"}
 
 
 @app.get("/api/settings", response_model=SettingsResponse)

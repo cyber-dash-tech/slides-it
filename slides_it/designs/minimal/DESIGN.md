@@ -111,9 +111,11 @@ body::after {
 
 ### Slide Layout
 
-- Full-viewport slides (`height: 100vh`, `scroll-snap-align: start`)
+- Full-viewport slides (`height: 100dvh`, `scroll-snap-align: start`)
+- 16:9 aspect ratio enforced via `.slide-inner`:
+  - Default: `max-width: min(880px, calc(100dvh * 16 / 9))` — for Cover, Quote, Closing
+  - Wide: `max-width: min(1060px, calc(100dvh * 16 / 9))` — for Feature Cards, Stats Row, Two-Column, Step Flow (add `.wide` class)
 - Comfortable padding: `clamp(2.5rem, 6vw, 6rem)`
-- Content constrained to `max-width: 880px; margin: 0 auto`
 - Title slide: large serif heading left-aligned + thin `1px` rule beneath + muted subtitle
 - Content slides: heading top with `border-bottom: 1px solid var(--border)` separator, content below
 
@@ -152,42 +154,39 @@ Cards feel like sheets of paper resting gently on the page — subtle movement, 
 - **Progress bar**: `2px` line at top, `var(--border-strong)` color (not accent-colored)
 - Trigger via `.visible` class added via `IntersectionObserver`
 - Keep all motion extremely subtle — this theme is about stillness and warmth
+- Numeric data: numbers appear statically with fade-in — no counter animation
 
-### Icons
+These animation rules override any defaults in the core skill. This theme intentionally
+avoids directional motion (translateY/translateX) for entrance — opacity-only transitions
+preserve the calm, paper-like feel.
 
-Use Heroicons (outline style) for all iconography.
+### Icons & Graphic Elements
 
-**CDN link (add in `<head>`):**
-```html
-<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.js"></script>
-```
+- Load Lucide icons via CDN: `<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.js"></script>`
+- Icon color: `var(--accent-2)` (warm grey), size: `1.75rem`, hover: `scale(1.05)`
+- Icons are optional — this theme can rely purely on typography and whitespace for visual hierarchy
+- Decorative elements: thin `1px` rules, subtle left borders in `var(--border-strong)` — never heavy stripes or geometric shapes
+- No glow effects, no colored borders, no SVG background shapes
 
-**Usage:**
-- Size: `24px` default, use Tailwind-style classes like `w-6 h-6`
-- Color: inherits from `currentColor` — set via CSS `color` property on parent
-- Animate on hover: subtle `transform: scale(1.05)` — keep it restrained
+### Slide Layout Variants
 
-**Example — feature card:**
-```html
-<div class="feature-card">
-    <i data-lucide="lightbulb" class="feature-icon"></i>
-    <div class="feature-title">Insight</div>
-    <div class="feature-desc">One or two sentences describing this point.</div>
-</div>
-```
+Use these layout patterns based on content type. All use paper-like white cards
+with thin borders and minimal shadow. No glassmorphism, no glow.
 
-```css
-.feature-icon {
-    width: 1.75rem;
-    height: 1.75rem;
-    color: var(--accent-2);
-    margin-bottom: 0.5rem;
-    transition: transform 0.2s ease;
-}
-.feature-card:hover .feature-icon {
-    transform: scale(1.05);
-}
-```
+**Stats Row** — 3-column grid of white cards, large numbers in `var(--text-primary)`
+(bold, not colored), thin bottom border. Numbers appear statically with fade-in.
+
+**Two-Column** — left: DM Serif Display heading + body text, right: white card with
+thin border. Clean typographic contrast does the visual work.
+
+**Step Flow** — horizontal steps with numbered circles in `var(--text-primary)`
+(filled dark, white number), `1px` connector lines in `var(--border)`.
+
+**Feature Cards** — 2×2 grid of white cards, no accent top border (use only thin
+`var(--border)`). Optional Lucide icon in `var(--accent-2)`.
+
+**Quote Block** — large DM Serif Display italic text, `border-left: 2px solid
+var(--border-strong)`, no color accent. Let the serif typography be the visual element.
 
 ### Code Blocks (if any)
 

@@ -70,6 +70,43 @@ Do not proceed to Phase 2 until the user has replied to the design question.
 
 ---
 
+### Required Slide Structure
+
+Every presentation must include these structural sections, in order.
+The exact visual style for each section comes from the active design.
+
+| Section | Required? | Content |
+|---------|-----------|---------|
+| Cover | Always | Title, subtitle, presenter name, date |
+| Table of Contents | When ≥ 6 slides | 3–5 chapter headings (display only, no links) |
+| Background / Problem | Always | Why this matters — current state, pain points, or opportunity |
+| Core Content | At least 2 slides | The substance — use layout variants from the active design |
+| Summary | Always | ≤ 3 key takeaways + one-sentence value statement |
+| Closing (Q&A) | Always | Thank you, Q&A prompt, contact info (optional) |
+
+When the user asks for N slides, distribute them across these sections.
+A 6-slide deck might be: Cover → Background → Content × 3 → Closing.
+An 8-slide deck might be: Cover → TOC → Background → Content × 3 → Summary → Closing.
+Never skip Cover, Background, or Closing regardless of slide count.
+
+### Industry Context
+
+If an industry definition is active (see the `<!-- Active industry: ... -->` comment
+at the top of this system prompt), the industry's content is injected between these
+core rules and the visual design below.
+
+**When an industry definition is present:**
+- Follow its report structure instead of the default "Required Slide Structure" above.
+  The industry defines its own sections, ordering, and slide count distribution.
+- Follow its AI logic rules (e.g. terminology, evidence standards, risk frameworks).
+- The industry's visual preferences are **suggestions only** — the active Design's
+  visual rules always take precedence for colors, fonts, animations, and layout.
+
+**When the industry is "general" or no industry body is present:**
+- Use the default "Required Slide Structure" above.
+
+---
+
 ### Phase 2 — Generate
 
 Once you have enough information, generate the complete HTML file in one shot.
@@ -121,6 +158,30 @@ Follow these rules on every generation. They are non-negotiable.
 
 ### CSS Rules
 
+- **16:9 aspect ratio** — every slide must maintain 16:9 proportions for projector
+  and PDF/PPT export compatibility:
+  ```css
+  .slide {
+      height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      scroll-snap-align: start;
+  }
+  .slide-inner {
+      width: 100%;
+      max-width: min(960px, calc(100dvh * 16 / 9));
+      max-height: 100dvh;
+      aspect-ratio: 16 / 9;
+      padding: clamp(2rem, 5vw, 5rem);
+  }
+  .slide-inner.wide {
+      max-width: min(1120px, calc(100dvh * 16 / 9));
+  }
+  ```
+  Use `.slide-inner` (960px) for Cover, Quote, and Closing slides.
+  Use `.slide-inner.wide` (1120px) for multi-column layouts: Feature Cards,
+  Stats Row, Two-Column, and Step Flow.
 - All colors and sizes via **CSS custom properties** on `:root` — never hardcode
 - All typography and spacing **must** use `clamp()`:
   ```css
@@ -163,17 +224,9 @@ All methods must be **fully implemented** — no empty stubs, no `// TODO` comme
 
 ### Inline Editing
 
-Only add if user said **Yes** in Phase 1. Use JS hover with 400ms delay timeout —
-**never** the CSS `~` sibling selector (it breaks because `pointer-events: none`
-interrupts the hover chain):
-
-```javascript
-hotzone.addEventListener('mouseleave', () => {
-    hideTimeout = setTimeout(() => {
-        if (!editor.isActive) editToggle.classList.remove('show');
-    }, 400);
-});
-```
+Only add if user said **Yes** in Phase 1. Implementation: JS-based hover with
+400ms delay timeout. **Never** use CSS `~` sibling selector (breaks due to
+`pointer-events: none` interrupting the hover chain).
 
 ### Image Rules
 
@@ -201,37 +254,23 @@ hotzone.addEventListener('mouseleave', () => {
 
 **Layout Diversity** — choose the layout based on content type, never default to a bullet list:
 
-| Content type | Required layout |
+| Content type | Layout |
 |---|---|
-| Key metrics / data | Stat card row (large number + label) — not a list |
+| Key metrics / data | Stat card row (large number + label) |
 | Process / steps | Horizontal step flow with numbered circles |
 | Comparison / contrast | Two-column or 2×2 matrix |
-| Key insight / quote | Large quote block with left accent border |
+| Key insight / quote | Large quote block with accent border |
 | Features / items | Card grid (2–3 columns) |
-| Pure bullet list | Must pair with at least 1 visual element (icon, number, accent stripe) |
 
-**Visual Hierarchy** — every slide must have exactly 1 dominant visual focal point:
-- A large stat number (weight 700+, size 3rem+), or
-- A strong accent stripe / left border, or
-- A prominent inline SVG icon, or
-- A high-contrast heading on a dark background
+The active design's **Slide Layout Variants** section defines the exact HTML/CSS
+patterns for each layout. Follow them precisely.
 
-Forbidden: plain colored background + unstyled bullet list with zero decorative elements.
-That is the lowest-quality output. Always add at least one visual anchor.
+**Visual Hierarchy** — every slide must have exactly 1 dominant visual focal point.
+Forbidden: plain background + unstyled bullet list with zero decorative elements.
 
-**Animation Quality**:
-- Entrance animations must have directionality — use `translateY` or `translateX`, not opacity-only fade
-- Numeric data (percentages, dollar amounts, counts) must use a JS counter animation that counts from 0 to the target value on slide enter
-- List items must stagger — never reveal all items simultaneously
-- Cover slide title: combine `translateY` + subtle `scale(0.97 → 1)` for a quality weight-drop feel
-
-**Graphic Elements** — every content slide must include at least one of:
-- An inline SVG icon relevant to the slide topic (embed directly in HTML — no external files)
-- A decorative accent line, left border stripe, or geometric shape using the accent color
-- Numbered circle badges for step/process slides
-- A subtle background shape (low opacity, does not interfere with content readability)
-
-See `html-template.md` for ready-to-use SVG icons and layout component HTML snippets.
+**Animation and graphic element rules are defined by the active design.**
+Follow the design's Animations and Icons & Graphic Elements sections — do not
+override them with your own defaults.
 
 ---
 
@@ -283,75 +322,32 @@ you chose. Ask if they want any adjustments before proceeding.
 
 ### Phase T2 — Generate skill text
 
-Write the complete skill text body for the design. It must follow this exact structure
-(use the default design's DESIGN.md as the canonical reference):
-
-```
-## Visual Style — {Aesthetic Name} Theme
-
-Apply this visual style when generating all slides in this session.
-
-### Color Palette
-\`\`\`css
-:root {
-    --bg-primary:    <hex>;
-    --bg-secondary:  <hex>;
-    --bg-card:       <hex>;
-    --text-primary:  <hex>;
-    --text-secondary:<hex>;
-    --accent:        <hex>;
-    --accent-glow:   rgba(..., 0.25);
-    --accent-2:      <hex>;
-    --border:        rgba(..., 0.2);
-}
-\`\`\`
-
-### Typography
-- **Display font**: `Font Name` (headings) — load from Fontshare/Google Fonts
-- **Body font**: `Font Name` (body) — load from Fontshare/Google Fonts
-- Font link tag: `<link rel="stylesheet" href="...">`
-- Title size: `clamp(...)`
-- Subtitle size: `clamp(...)`
-- Body size: `clamp(...)`
-
-### Slide Layout
-[full-viewport, padding, max-width, title slide style, content slide style]
-
-### Cards & Containers
-[CSS for .card with background, border, border-radius, padding, box-shadow]
-
-### Accent Elements
-[gradient text, border accents, dividers]
-
-### Animations
-[entrance animation spec, stagger delay, trigger mechanism, progress bar style]
-
-### Code Blocks (if any)
-[pre/code CSS]
-
-### Do & Don't
-[5–8 rules that preserve the aesthetic integrity of this theme]
-```
+Write the complete DESIGN.md body for the new design. Use the **default design's
+DESIGN.md** as the canonical reference for section structure. Your output must
+include all of the same sections: Color Palette, Typography, Background Layers,
+Slide Layout, Cards & Containers, Accent Elements, Slide Layout Variants,
+Icons & Graphic Elements, Animations, Code Blocks, Do & Don't, Reduced Motion.
 
 ---
 
 ### Phase T3 — Generate preview.html
 
-Write a complete, self-contained HTML file with exactly **3 slides** that
-showcases the design's visual style:
+Write a self-contained HTML file with **7 slides** that showcases every layout
+variant defined in the design:
 
-- **Slide 1 (Title)**: Design name as title, "A slides-it design" as subtitle,
-  today's date.
-- **Slide 2 (Content)**: "Sample Content Slide" heading, 4 bullet points that
-  show typography and card layout at their best.
-- **Slide 3 (Closing)**: "Thank You" — demonstrates the closing slide style.
+1. **Cover** — title slide with design name, subtitle, date
+2. **Feature Cards** — 3-column card grid with icons
+3. **Stats Row** — 3 stat cards with large numbers (include counter animation if the design requires it)
+4. **Two-Column** — left text + right card with supporting evidence
+5. **Step Flow** — 4-step horizontal process with numbered circles and connectors
+6. **Quote Block** — large quote with accent border and attribution
+7. **Closing** — thank you + credit line
 
-Rules for preview.html:
-- Fully self-contained — all CSS and JS inline, no external resources except
-  the web font `<link>` tag.
-- Use **exactly** the CSS variables defined in the skill text you just generated.
-- Include working keyboard navigation (arrow keys) and nav dots.
-- Must look great at 900×600px (the DesignModal preview iframe size).
+Rules:
+- Use the exact CSS variables from the skill text you just generated
+- Each slide is a working reference for its layout variant — AI will copy these patterns
+- Must look great at 900×600px (DesignModal preview iframe size)
+- Include working keyboard navigation, nav dots, and progress bar
 
 ---
 
@@ -427,17 +423,11 @@ Do not generate a presentation unless the user asks for one.
 
 ### Design Generation Rules
 
-- **Never** hardcode colors — always use CSS custom properties from the palette
-  you extracted.
-- **Never** name a design after a brand or person (e.g. "apple-style",
-  "jobs-theme"). Use descriptive aesthetic names only.
-- The `skill_md` you generate becomes the AI's only style reference for that
-  design. Make it precise and complete — vague instructions produce
-  inconsistent slides.
-- preview.html must use the **exact same CSS variables** as the skill text. If
-  they diverge the preview will look wrong.
-- If the user uploads multiple images with conflicting styles, ask which one
-  to use as the primary reference before proceeding.
+- **Never** hardcode colors — always use CSS custom properties.
+- **Never** name a design after a brand or person. Use descriptive aesthetic names.
+- The `skill_md` you generate becomes the AI's only style reference — be precise.
+- preview.html must use the **exact same CSS variables** as the skill text.
+- If the user uploads multiple images with conflicting styles, ask which one to use.
 
 ---
 
@@ -457,9 +447,10 @@ curl -s http://localhost:3000/api/design/<name>
 
 The JSON response contains:
 - `skill_md` — style instructions (also injected below after the `---` separator)
-- `preview_html` — canonical 3-slide HTML that shows the exact colors, fonts,
-  layout patterns, and animations you must replicate. This is the ground truth
-  for visual style — match it precisely.
+- `preview_html` — canonical 7-slide HTML showcasing every layout variant
+  (Cover, Feature Cards, Stats Row, Two-Column, Step Flow, Quote Block, Closing).
+  This is the ground truth for visual style — match its patterns precisely when
+  generating slides.
 
 If `preview_html` is `null`, use `skill_md` as the sole visual reference.
 
@@ -467,6 +458,11 @@ If `preview_html` is `null`, use `skill_md` as the sole visual reference.
 
 ## What Comes Next in This System Prompt
 
-The section after the `---` separator below contains the **visual style** for this
-session (colors, fonts, animation specifics). Apply it precisely — it overrides any
-default aesthetic preferences you might have.
+After the `---` separators below, two additional sections may appear:
+
+1. **Industry definition** (if an industry other than "general" is active) — report
+   structure, AI logic rules, terminology, and visual preferences for the industry.
+2. **Visual style** (from the active design) — colors, fonts, animation specifics,
+   layout variants. Apply it precisely — it overrides any default aesthetic preferences.
+
+If only one `---` section follows, it is the visual style (no industry is active).

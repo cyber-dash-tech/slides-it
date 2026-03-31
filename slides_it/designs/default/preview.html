@@ -7,6 +7,9 @@
 <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&f[]=satoshi@400,500&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.js"></script>
 <style>
+/* ===========================================
+   CSS CUSTOM PROPERTIES — Aurora Theme
+   =========================================== */
 :root {
   --bg-primary:    #030712;
   --bg-secondary:  #0f172a;
@@ -14,8 +17,8 @@
   --text-primary:  #f8fafc;
   --text-secondary:#94a3b8;
   --accent:        #22d3ee;
-  --accent-2:     #a78bfa;
-  --accent-3:     #34d399;
+  --accent-2:      #a78bfa;
+  --accent-3:      #34d399;
   --border:        rgba(34, 211, 238, 0.15);
   --glow:          rgba(34, 211, 238, 0.25);
 }
@@ -28,7 +31,9 @@ html {
   height: 100%;
 }
 
-/* Background Layers */
+/* ===========================================
+   BACKGROUND LAYERS — Aurora ribbons + noise + stars
+   =========================================== */
 body::before {
   content: '';
   position: fixed;
@@ -57,40 +62,32 @@ body::after {
   z-index: -1;
   pointer-events: none;
 }
-
 .aurora-1 {
-  top: -10%;
-  left: -25%;
+  top: -10%; left: -25%;
   background: linear-gradient(135deg, #22d3ee 0%, transparent 60%);
   animation-duration: 28s;
 }
-
 .aurora-2 {
-  top: 20%;
-  right: -30%;
+  top: 20%; right: -30%;
   background: linear-gradient(225deg, #a78bfa 0%, transparent 50%);
   animation-duration: 35s;
   animation-delay: -10s;
 }
-
 .aurora-3 {
-  top: 40%;
-  left: 10%;
+  top: 40%; left: 10%;
   background: linear-gradient(90deg, #34d399 0%, transparent 40%);
   animation-duration: 22s;
   animation-delay: -5s;
   opacity: 0.4;
 }
-
 @keyframes aurora-drift {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(30px, -20px) scale(1.1); }
+  0%   { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(30px, -20px) scale(1.1); }
   100% { transform: translate(-20px, 20px) scale(0.95); }
 }
 
 .stars {
-  position: fixed;
-  inset: 0;
+  position: fixed; inset: 0;
   background-image: radial-gradient(1px 1px at 20% 30%, white 50%, transparent),
                     radial-gradient(1px 1px at 40% 70%, white 50%, transparent),
                     radial-gradient(1.5px 1.5px at 60% 20%, white 50%, transparent),
@@ -108,10 +105,11 @@ body {
   height: 100%;
 }
 
-/* Progress bar */
+/* ===========================================
+   PROGRESS BAR & NAV DOTS
+   =========================================== */
 .progress-bar {
-  position: fixed;
-  top: 0; left: 0;
+  position: fixed; top: 0; left: 0;
   height: 3px;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
   width: 0%;
@@ -120,7 +118,6 @@ body {
   box-shadow: 0 0 8px var(--glow);
 }
 
-/* Nav dots */
 .nav-dots {
   position: fixed;
   right: clamp(1rem, 2vw, 1.5rem);
@@ -131,63 +128,81 @@ body {
   gap: 8px;
   z-index: 100;
 }
-
 .nav-dots button {
   width: 6px; height: 6px;
   border-radius: 50%;
   border: 1px solid rgba(34, 211, 238, 0.4);
   background: transparent;
-  cursor: pointer;
-  padding: 0;
+  cursor: pointer; padding: 0;
   transition: background 0.2s, border-color 0.2s;
 }
-
 .nav-dots button.active {
   background: var(--accent);
   border-color: var(--accent);
   box-shadow: 0 0 6px var(--glow);
 }
 
-/* Slides */
+/* ===========================================
+   SLIDE BASE — 16:9 aspect ratio enforced
+   =========================================== */
 .slide {
-  height: 100vh;
-  height: 100dvh;
+  height: 100vh; height: 100dvh;
   scroll-snap-align: start;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+.slide-inner {
+  width: 100%;
+  max-width: min(960px, calc(100dvh * 16 / 9));
+  max-height: 100dvh;
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: clamp(2rem, 5vw, 5rem);
-  background: transparent;
+}
+.slide-inner.wide {
+  max-width: min(1120px, calc(100dvh * 16 / 9));
 }
 
-.slide-inner {
-  max-width: 960px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-/* Reveal */
+/* ===========================================
+   REVEAL ANIMATIONS
+   =========================================== */
 .reveal {
   opacity: 0;
   transform: translateY(24px);
-  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
-
 .reveal.visible {
   opacity: 1;
   transform: translateY(0);
 }
-
 .reveal:nth-child(1) { transition-delay: 0s; }
 .reveal:nth-child(2) { transition-delay: 0.1s; }
-.reveal:nth-child(3) { transition-delay: 0.2s; }
-.reveal:nth-child(4) { transition-delay: 0.3s; }
-.reveal:nth-child(5) { transition-delay: 0.4s; }
-.reveal:nth-child(6) { transition-delay: 0.5s; }
+.reveal:nth-child(3) { transition-delay: 0.1s; }
+.reveal:nth-child(4) { transition-delay: 0.2s; }
+.reveal:nth-child(5) { transition-delay: 0.3s; }
+.reveal:nth-child(6) { transition-delay: 0.4s; }
+
+/* Cover title special animation */
+.title-reveal {
+  opacity: 0;
+  transform: translateY(24px) scale(0.97);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.title-reveal.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .reveal {
+  .reveal, .title-reveal {
     transition: opacity 0.4s ease;
     transform: none !important;
   }
@@ -197,31 +212,28 @@ body {
   }
 }
 
-/* Typography */
+/* ===========================================
+   TYPOGRAPHY
+   =========================================== */
 h1 {
   font-family: 'Clash Display', ui-sans-serif, sans-serif;
   font-size: clamp(2.5rem, 6vw, 5rem);
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.02em;
-  color: var(--text-primary);
   text-shadow: 0 0 40px rgba(34, 211, 238, 0.3);
 }
-
 h2 {
   font-family: 'Clash Display', ui-sans-serif, sans-serif;
   font-size: clamp(1.6rem, 3vw, 2.4rem);
   font-weight: 600;
   line-height: 1.2;
-  color: var(--text-primary);
 }
-
 .subtitle {
   font-size: clamp(1rem, 2vw, 1.5rem);
   color: var(--text-secondary);
   line-height: 1.6;
 }
-
 .label {
   font-size: 0.7rem;
   letter-spacing: 0.12em;
@@ -229,31 +241,27 @@ h2 {
   color: var(--accent);
   font-weight: 500;
 }
-
-/* Gradient text */
 .gradient-text {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
-
-/* Accent line */
 .accent-line {
-  width: 48px;
-  height: 3px;
+  width: 48px; height: 3px;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
   border-radius: 2px;
   margin: 1.25rem 0;
 }
 
-/* Glass cards */
+/* ===========================================
+   LAYOUT VARIANT: Feature Cards (3-col grid)
+   =========================================== */
 .card-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
 }
-
 .card {
   background: var(--bg-card);
   backdrop-filter: blur(12px);
@@ -264,121 +272,168 @@ h2 {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
-
 .card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--glow);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.4), 0 0 0 1px var(--glow);
   border-color: var(--glow);
 }
-
 .card-icon {
-  width: 2rem;
-  height: 2rem;
+  width: 2rem; height: 2rem;
   color: var(--accent);
   margin-bottom: 0.75rem;
   transition: transform 0.2s ease;
 }
-
-.card:hover .card-icon {
-  transform: scale(1.15);
-}
-
+.card:hover .card-icon { transform: scale(1.15); }
 .card-label {
-  font-size: 0.65rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 0.5rem;
-  font-weight: 500;
+  font-size: 0.65rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--accent);
+  margin-bottom: 0.5rem; font-weight: 500;
 }
-
 .card-title {
   font-family: 'Clash Display', sans-serif;
   font-size: clamp(0.95rem, 1.6vw, 1.2rem);
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
-  font-weight: 600;
+  margin-bottom: 0.5rem; font-weight: 600;
 }
-
 .card-body {
   font-size: 0.85rem;
   color: var(--text-secondary);
   line-height: 1.6;
 }
 
-/* Bullet list */
-.bullet-list {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.875rem;
+/* ===========================================
+   LAYOUT VARIANT: Stats Row
+   =========================================== */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(1rem, 2vw, 2rem);
 }
-
-.bullet-list li {
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-  font-size: clamp(0.9rem, 1.3vw, 1.05rem);
-  color: var(--text-secondary);
-  line-height: 1.6;
-  padding: 0.875rem 1rem;
+.stat-card {
   background: var(--bg-card);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 16px;
+  padding: clamp(1.5rem, 2.5vw, 2.5rem);
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
 }
-
-.bullet-list li::before {
-  content: "›";
-  color: var(--accent);
-  font-size: 1.1em;
-  flex-shrink: 0;
-  margin-top: 0.05em;
-}
-
-/* Stat row */
-.stat-row {
-  display: flex;
-  gap: 3rem;
-  align-items: flex-end;
-}
-
 .stat-number {
   font-family: 'Clash Display', sans-serif;
   font-size: clamp(2.5rem, 5vw, 4rem);
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.03em;
+  margin-bottom: 0.5rem;
 }
-
-.stat-desc {
-  font-size: 0.75rem;
+.stat-label {
+  font-size: clamp(0.7rem, 1vw, 0.85rem);
   color: var(--text-secondary);
-  letter-spacing: 0.06em;
   text-transform: uppercase;
-  margin-top: 0.25rem;
+  letter-spacing: 0.06em;
+  font-weight: 500;
 }
 
-/* Callout */
-.callout {
+/* ===========================================
+   LAYOUT VARIANT: Two-Column
+   =========================================== */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(2rem, 4vw, 4rem);
+  align-items: start;
+}
+.two-col-main h2 {
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  margin-bottom: 1rem;
+}
+.two-col-main p {
+  font-size: clamp(0.85rem, 1.1vw, 1rem);
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+.evidence-list {
+  list-style: none; padding: 0;
+  display: flex; flex-direction: column;
+  gap: 0.65rem;
+}
+.evidence-list li {
+  padding-left: 1.1rem; position: relative;
+  font-size: clamp(0.85rem, 1.1vw, 1rem);
+  color: var(--text-primary); line-height: 1.5;
+}
+.evidence-list li::before {
+  content: '';
+  position: absolute; left: 0; top: 0.55em;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ===========================================
+   LAYOUT VARIANT: Step Flow
+   =========================================== */
+.step-flow {
+  display: flex;
+  align-items: flex-start;
+}
+.step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+}
+.step-circle {
+  width: clamp(2.5rem, 4vw, 3.5rem);
+  height: clamp(2.5rem, 4vw, 3.5rem);
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  font-family: 'Clash Display', sans-serif;
+  font-size: clamp(1rem, 1.5vw, 1.4rem);
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 20px -8px rgba(34, 211, 238, 0.5);
+  flex-shrink: 0;
+}
+.step-connector {
+  flex: 0 0 2rem;
+  height: 2px;
+  background: var(--border);
+  margin-top: clamp(1.25rem, 2vw, 1.75rem);
+  align-self: flex-start;
+  box-shadow: 0 0 6px rgba(34, 211, 238, 0.1);
+}
+.step-title {
+  font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+  font-weight: 600;
+}
+.step-desc {
+  font-size: clamp(0.75rem, 0.9vw, 0.875rem);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 140px;
+}
+
+/* ===========================================
+   LAYOUT VARIANT: Quote Block
+   =========================================== */
+.quote-block {
   border-left: 3px solid var(--accent);
   padding: 1rem 1.25rem;
   background: rgba(34, 211, 238, 0.06);
   border-radius: 0 8px 8px 0;
 }
-
-.callout p {
-  font-size: clamp(1.1rem, 2vw, 1.5rem);
-  color: var(--text-primary);
+.quote-block blockquote {
+  font-size: clamp(1.2rem, 2.5vw, 1.8rem);
   font-style: italic;
   line-height: 1.5;
-  margin-bottom: 0.5rem;
-  font-family: 'Satoshi', sans-serif;
+  margin-bottom: 0.75rem;
+  text-shadow: 0 0 30px rgba(34, 211, 238, 0.15);
 }
-
-.callout cite {
+.quote-block cite {
   font-size: 0.75rem;
   color: var(--accent);
   letter-spacing: 0.08em;
@@ -398,21 +453,25 @@ h2 {
 <div class="progress-bar" id="progressBar"></div>
 <nav class="nav-dots" id="navDots" aria-label="Slide navigation"></nav>
 
-<!-- Slide 1: Title -->
+<!-- ==============================
+     SLIDE 1: Cover
+     ============================== -->
 <section class="slide" data-index="0">
   <div class="slide-inner">
     <p class="label reveal">slides-it · aurora theme</p>
     <div class="accent-line reveal"></div>
-    <h1 class="reveal">Build slides that<br><span class="gradient-text">actually impress</span></h1>
+    <h1 class="title-reveal">Build slides that<br><span class="gradient-text">actually impress</span></h1>
     <div class="accent-line reveal" style="background: linear-gradient(90deg, var(--accent-2), transparent)"></div>
     <p class="subtitle reveal">A stunning dark theme with animated aurora backgrounds — engineered for technical presentations, product demos, and conference talks.</p>
     <p class="reveal" style="margin-top:2rem; font-size:0.8rem; color: var(--text-secondary)">2026 — slides-it</p>
   </div>
 </section>
 
-<!-- Slide 2: Three columns with icons -->
+<!-- ==============================
+     SLIDE 2: Feature Cards (3-col)
+     ============================== -->
 <section class="slide" data-index="1">
-  <div class="slide-inner">
+  <div class="slide-inner wide">
     <p class="label reveal">Core principles</p>
     <h2 class="reveal" style="margin: 0.5rem 0 1.5rem">Three pillars of great slides</h2>
     <div class="card-grid reveal">
@@ -426,7 +485,7 @@ h2 {
         <i data-lucide="wand-2" class="card-icon"></i>
         <p class="card-label">Motion</p>
         <p class="card-title">Glassmorphism</p>
-        <p class="card-body">Translucent cards with blur effects add modern depth.</p>
+        <p class="card-body">Translucent cards with blur effects add modern depth to every layout.</p>
       </div>
       <div class="card">
         <i data-lucide="type" class="card-icon"></i>
@@ -438,63 +497,153 @@ h2 {
   </div>
 </section>
 
-<!-- Slide 3: Bullets -->
+<!-- ==============================
+     SLIDE 3: Stats Row (counter animation)
+     ============================== -->
 <section class="slide" data-index="2">
-  <div class="slide-inner">
-    <p class="label reveal">What's included</p>
-    <h2 class="reveal" style="margin: 0.5rem 0 1.5rem">Everything you need,<br>nothing you don't</h2>
-    <ul class="bullet-list">
-      <li class="reveal">Animated aurora background with 3 drifting light layers</li>
-      <li class="reveal">Glassmorphism cards with backdrop-filter blur effect</li>
-      <li class="reveal">Keyboard, touch, and scroll navigation built-in</li>
-      <li class="reveal">IntersectionObserver-triggered entrance animations</li>
-      <li class="reveal">Fluid <code style="font-family:monospace;font-size:0.85em;background:rgba(34,211,238,0.12);padding:0.1em 0.4em;border-radius:4px;color:var(--accent-2)">clamp()</code> sizing scales from laptop to 4K display</li>
-    </ul>
-  </div>
-</section>
-
-<!-- Slide 4: Stats -->
-<section class="slide" data-index="3">
-  <div class="slide-inner">
+  <div class="slide-inner wide">
     <p class="label reveal">By the numbers</p>
     <div class="accent-line reveal"></div>
-    <div class="stat-row reveal">
-      <div>
-        <div class="stat-number gradient-text">100%</div>
-        <div class="stat-desc">Self-contained HTML</div>
+    <div class="stats-row reveal">
+      <div class="stat-card">
+        <div class="stat-number gradient-text" data-target="100" data-suffix="%">0%</div>
+        <div class="stat-label">Self-contained HTML</div>
       </div>
-      <div>
-        <div class="stat-number gradient-text">0</div>
-        <div class="stat-desc">Dependencies</div>
+      <div class="stat-card">
+        <div class="stat-number gradient-text" data-target="0">0</div>
+        <div class="stat-label">External dependencies</div>
       </div>
-      <div>
-        <div class="stat-number gradient-text">∞</div>
-        <div class="stat-desc">Topics it suits</div>
+      <div class="stat-card">
+        <div class="stat-number gradient-text" data-target="6" data-suffix=" layouts">0 layouts</div>
+        <div class="stat-label">Built-in variants</div>
       </div>
     </div>
-    <div class="accent-line reveal" style="margin-top:2rem;background:linear-gradient(90deg,var(--accent-2),transparent)"></div>
-    <p class="reveal" style="font-size:clamp(0.9rem,1.3vw,1rem);color:var(--text-secondary);line-height:1.7">One HTML file. No build tools, no CDN, no runtime. Open it anywhere.</p>
+    <p class="reveal" style="margin-top:1.5rem; font-size:clamp(0.85rem,1.1vw,1rem); color:var(--text-secondary)">One HTML file. No build tools, no CDN, no runtime. Open it anywhere.</p>
   </div>
 </section>
 
-<!-- Slide 5: Closing quote -->
+<!-- ==============================
+     SLIDE 4: Two-Column
+     ============================== -->
+<section class="slide" data-index="3">
+  <div class="slide-inner wide">
+    <div class="two-col reveal">
+      <div class="two-col-main">
+        <p class="label" style="margin-bottom:0.75rem">Key finding</p>
+        <h2>Glassmorphism elevates content hierarchy</h2>
+        <p style="margin-top:1rem">Translucent card surfaces with backdrop blur create natural depth layers, guiding the eye to the most important information without heavy borders or shadows.</p>
+      </div>
+      <div>
+        <div class="card">
+          <p class="card-label">Evidence</p>
+          <ul class="evidence-list">
+            <li>Backdrop blur separates content from background</li>
+            <li>Border glow draws attention on hover</li>
+            <li>Semi-transparent surfaces feel modern and light</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==============================
+     SLIDE 5: Step Flow
+     ============================== -->
 <section class="slide" data-index="4">
+  <div class="slide-inner wide">
+    <p class="label reveal">Process</p>
+    <h2 class="reveal" style="margin: 0.5rem 0 2rem">From idea to presentation</h2>
+    <div class="step-flow reveal">
+      <div class="step">
+        <div class="step-circle">1</div>
+        <div class="step-title">Describe</div>
+        <div class="step-desc">Tell the AI your topic and audience</div>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step">
+        <div class="step-circle">2</div>
+        <div class="step-title">Generate</div>
+        <div class="step-desc">AI creates a complete HTML deck</div>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step">
+        <div class="step-circle">3</div>
+        <div class="step-title">Refine</div>
+        <div class="step-desc">Request changes in plain language</div>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step">
+        <div class="step-circle">4</div>
+        <div class="step-title">Present</div>
+        <div class="step-desc">Open the file and go</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==============================
+     SLIDE 6: Quote Block
+     ============================== -->
+<section class="slide" data-index="5">
   <div class="slide-inner">
-    <div class="callout reveal">
-      <p>"The presentation is the argument. Make it undeniable."</p>
+    <div class="quote-block reveal">
+      <blockquote>"The presentation is the argument. Make it undeniable."</blockquote>
       <cite>slides-it aurora theme</cite>
     </div>
-    <div class="accent-line reveal" style="margin-top:2.5rem"></div>
-    <p class="label reveal">generated with slides-it + claude</p>
+    <div class="accent-line reveal" style="margin-top:2rem"></div>
+    <p class="reveal" style="font-size:clamp(0.85rem,1.1vw,1rem); color:var(--text-secondary); line-height:1.7">Great design removes friction between your ideas and your audience's understanding.</p>
+  </div>
+</section>
+
+<!-- ==============================
+     SLIDE 7: Closing
+     ============================== -->
+<section class="slide" data-index="6">
+  <div class="slide-inner" style="text-align:center">
+    <div class="accent-line reveal" style="margin:0 auto 1.5rem"></div>
+    <h1 class="title-reveal" style="font-size:clamp(2rem,5vw,3.5rem)">Thank <span class="gradient-text">You</span></h1>
+    <p class="subtitle reveal" style="margin-top:1rem">Questions?</p>
+    <div class="accent-line reveal" style="margin:2rem auto 0; background:linear-gradient(90deg,var(--accent-2),transparent)"></div>
+    <p class="label reveal" style="margin-top:2rem">generated with slides-it + claude</p>
   </div>
 </section>
 
 <script>
-// Initialize icons
+/* ===========================================
+   INITIALIZE LUCIDE ICONS
+   =========================================== */
 if (typeof lucide !== 'undefined') {
   lucide.createIcons();
 }
 
+/* ===========================================
+   COUNTER ANIMATION — counts from 0 to target
+   =========================================== */
+function animateCounters(slide) {
+  slide.querySelectorAll('.stat-number[data-target]').forEach(el => {
+    if (el.dataset.animated) return;
+    el.dataset.animated = 'true';
+    const target = parseFloat(el.dataset.target);
+    const prefix = el.dataset.prefix || '';
+    const suffix = el.dataset.suffix || '';
+    const isFloat = target % 1 !== 0;
+    const duration = 800;
+    const start = performance.now();
+    function step(now) {
+      const progress = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      const value = target * ease;
+      el.textContent = prefix + (isFloat ? value.toFixed(1) : Math.round(value)) + suffix;
+      if (progress < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+/* ===========================================
+   SLIDE PRESENTATION CONTROLLER
+   =========================================== */
 class SlidePresentation {
   constructor() {
     this.slides = document.querySelectorAll('.slide');
@@ -545,7 +694,8 @@ class SlidePresentation {
     const obs = new IntersectionObserver((entries) => {
       entries.forEach(e => {
         if (e.isIntersecting) {
-          e.target.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+          e.target.querySelectorAll('.reveal, .title-reveal').forEach(el => el.classList.add('visible'));
+          animateCounters(e.target);
         }
       });
     }, { threshold: 0.15 });

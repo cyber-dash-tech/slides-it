@@ -106,11 +106,16 @@ export interface DesignSkillResponse {
 }
 
 /**
- * Fetch the combined system prompt (core SKILL.md + design SKILL.md)
- * for the given design name.
+ * Fetch the combined system prompt (core SKILL.md + industry INDUSTRY.md + design DESIGN.md)
+ * for the given design name, optionally scoped to a specific industry.
  */
-export function getDesignSkill(name: string): Promise<DesignSkillResponse> {
-  return request<DesignSkillResponse>(`/api/design/${encodeURIComponent(name)}/skill`)
+export function getDesignSkill(name: string, industry?: string): Promise<DesignSkillResponse> {
+  const params = new URLSearchParams()
+  if (industry) params.set('industry', industry)
+  const qs = params.toString()
+  return request<DesignSkillResponse>(
+    `/api/design/${encodeURIComponent(name)}/skill${qs ? `?${qs}` : ''}`,
+  )
 }
 
 export interface DesignPreviewResponse {
@@ -194,6 +199,68 @@ export function activateDesign(name: string): Promise<{ name: string; status: st
     method: 'PUT',
   })
 }
+
+// ---------------------------------------------------------------------------
+// Industries
+// ---------------------------------------------------------------------------
+
+export interface IndustryEntry {
+  name: string
+  description: string
+  author: string
+  version: string
+  active: boolean
+}
+
+export interface IndustryDetail {
+  name: string
+  description: string
+  author: string
+  version: string
+  active: boolean
+  skill_md: string
+}
+
+export function listIndustries(): Promise<IndustryEntry[]> {
+  return request<IndustryEntry[]>('/api/industries')
+}
+
+export function getIndustry(name: string): Promise<IndustryDetail> {
+  return request<IndustryDetail>(`/api/industry/${encodeURIComponent(name)}`)
+}
+
+export function activateIndustry(name: string): Promise<{ name: string; status: string }> {
+  return request<{ name: string; status: string }>(`/api/industries/${encodeURIComponent(name)}/activate`, {
+    method: 'PUT',
+  })
+}
+
+export interface InstallIndustryPayload {
+  source?: string
+  name?: string
+  description?: string
+  skill_md?: string
+  activate?: boolean
+}
+
+export function installIndustry(
+  payload: InstallIndustryPayload,
+): Promise<{ name: string; status: string; activated: string }> {
+  return request<{ name: string; status: string; activated: string }>('/api/industries/install', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function removeIndustry(name: string): Promise<{ name: string; status: string }> {
+  return request<{ name: string; status: string }>(`/api/industries/${encodeURIComponent(name)}`, {
+    method: 'DELETE',
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
 
 export interface SettingsResponse {
   providerID: string
