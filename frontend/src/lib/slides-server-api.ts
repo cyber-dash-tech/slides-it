@@ -311,3 +311,34 @@ export function saveSession(sessionId: string, messages: object[]): Promise<{ st
   })
 }
 
+// ---------------------------------------------------------------------------
+// File operations
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the URL to serve a workspace file directly in the browser (e.g. new tab).
+ * The path must be absolute and inside the active workspace.
+ */
+export function getFileServeUrl(path: string): string {
+  return `/api/file/serve?path=${encodeURIComponent(path)}`
+}
+
+/** Rename a file or directory inside the active workspace. */
+export function renameFile(
+  path: string,
+  newName: string,
+): Promise<{ path: string }> {
+  return request<{ path: string }>('/api/file/rename', {
+    method: 'PUT',
+    body: JSON.stringify({ path, new_name: newName }),
+  })
+}
+
+/** Delete a file or directory (recursively) inside the active workspace. */
+export function deleteFile(path: string): Promise<{ path: string; status: string }> {
+  return request<{ path: string; status: string }>(
+    `/api/file?path=${encodeURIComponent(path)}`,
+    { method: 'DELETE' },
+  )
+}
+

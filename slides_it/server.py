@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import mimetypes
 import os
+import shutil
 import threading
 import pathlib
 import signal
@@ -13,8 +15,9 @@ from contextlib import asynccontextmanager
 from typing import List
 
 import uvicorn
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -180,6 +183,11 @@ class InstallIndustryRequest(BaseModel):
     description: str = ""
     skill_md: str = ""       # full INDUSTRY.md body content
     activate: bool = False
+
+
+class FileRenameRequest(BaseModel):
+    path: str       # absolute path of the file/directory to rename
+    new_name: str   # new filename only (not a full path), no path separators
 
 
 # ---------------------------------------------------------------------------
@@ -876,7 +884,6 @@ def get_file_base64(path: str = Query(...)) -> dict[str, str]:
         raise HTTPException(status_code=404, detail=f"File not found: {path}")
 
     import base64
-    import mimetypes
 
     mime, _ = mimetypes.guess_type(str(file_path))
     if not mime:
@@ -926,6 +933,107 @@ async def upload_files(
         uploaded.append(filename)
 
     return {"uploaded": uploaded}
+
+
+@app.get("/api/file/serve")
+def serve_file(path: str = Query(...)) -> Response:
+    """
+    Serve a workspace file for browser preview (new tab).
+
+    Security: path must be absolute and inside the active workspace.
+
+    Returns the raw file bytes with the correct Content-Type header so the
+    browser can display images, PDFs, HTML, etc. directly.
+    """
+    if not _workspace_dir:
+        raise HTTPException(status_code=400, detail="No active workspace")
+
+    file_path = pathlib.Path(path).resolve()
+    workspace = pathlib.Path(_workspace_dir).resolve()
+
+    # Security: reject any path outside the workspace
+    try:
+        file_path.relative_to(workspace)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Path is outside the workspace")
+
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail=f"File not found: {path}")
+
+    mime, _ = mimetypes.guess_type(str(file_path))
+    if not mime:
+        mime = "application/octet-stream"
+
+    data = file_path.read_bytes()
+    return Response(content=data, media_type=mime)
+
+
+@app.put("/api/file/rename")
+def rename_file(req: FileRenameRequest) -> dict[str, str]:
+    """
+    Rename a file or directory inside the active workspace.
+
+    Args:
+        path:     Absolute path of the existing file/directory.
+        new_name: New filename only (no directory components).
+
+    Returns:
+        { "path": "<new absolute path>" }
+    """
+    if not _workspace_dir:
+        raise HTTPException(status_code=400, detail="No active workspace")
+
+    src = pathlib.Path(req.path).resolve()
+    workspace = pathlib.Path(_workspace_dir).resolve()
+
+    try:
+        src.relative_to(workspace)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Path is outside the workspace")
+
+    if not src.exists():
+        raise HTTPException(status_code=404, detail=f"Not found: {req.path}")
+
+    # Reject new_name with path separators to prevent directory traversal
+    new_name = req.new_name.strip()
+    if not new_name or "/" in new_name or "\\" in new_name or new_name in (".", ".."):
+        raise HTTPException(status_code=400, detail="Invalid new_name")
+
+    dst = src.parent / new_name
+    if dst.exists():
+        raise HTTPException(status_code=409, detail=f"Already exists: {new_name}")
+
+    src.rename(dst)
+    return {"path": str(dst)}
+
+
+@app.delete("/api/file")
+def delete_file(path: str = Query(...)) -> dict[str, str]:
+    """
+    Delete a file or directory (recursively) inside the active workspace.
+
+    Security: path must be absolute and inside the workspace.
+    """
+    if not _workspace_dir:
+        raise HTTPException(status_code=400, detail="No active workspace")
+
+    target = pathlib.Path(path).resolve()
+    workspace = pathlib.Path(_workspace_dir).resolve()
+
+    try:
+        target.relative_to(workspace)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Path is outside the workspace")
+
+    if not target.exists():
+        raise HTTPException(status_code=404, detail=f"Not found: {path}")
+
+    if target.is_dir():
+        shutil.rmtree(target)
+    else:
+        target.unlink()
+
+    return {"path": str(target), "status": "deleted"}
 
 
 # ---------------------------------------------------------------------------

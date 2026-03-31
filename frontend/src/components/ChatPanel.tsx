@@ -65,7 +65,7 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
   const [isComposing, setIsComposing] = useState(false)
 
   // Mode
-  const [currentMode, setCurrentMode] = useState<Mode>('build')
+  const [currentMode, setCurrentMode] = useState<Mode>('plan')
 
   // @ references
   const [atQuery, setAtQuery] = useState<string | null>(null)
@@ -103,6 +103,8 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
   // Track the name of the currently running tool for ThinkingDots label
   const runningToolRef = useRef<string>('')
   const [runningTool, setRunningTool] = useState('')
+  // Double-ESC abort: timestamp of last Escape press
+  const lastEscRef = useRef<number>(0)
   // Map question requestID → bubble ID (to attach question to the right bubble)
   const questionBubbleRef = useRef<Map<string, string>>(new Map())
   // Track answered question labels for read-only display
@@ -766,6 +768,7 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
       {atQuery !== null && (
         <AtPopover
           query={atQuery}
+          workspacePath={workspacePath}
           onSelect={handleAtSelect}
           onClose={() => setAtQuery(null)}
         />
@@ -818,6 +821,25 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
           onInput={handleInput}
           onPaste={handlePaste}
           onKeyDown={(e) => {
+            // Escape: close AtPopover if open; double-Escape (within 400ms) → abort
+            if (e.key === 'Escape') {
+              if (atQuery !== null) {
+                e.preventDefault()
+                setAtQuery(null)
+                return
+              }
+              if (sending) {
+                const now = Date.now()
+                if (now - lastEscRef.current < 400) {
+                  e.preventDefault()
+                  handleAbort()
+                  lastEscRef.current = 0
+                } else {
+                  lastEscRef.current = now
+                }
+              }
+              return
+            }
             // Tab → toggle mode (when AtPopover is closed)
             if (e.key === 'Tab' && !isComposing && atQuery === null) {
               e.preventDefault()
@@ -838,13 +860,13 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
             onClick={() => setCurrentMode((m) => m === 'build' ? 'plan' : 'build')}
             className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-colors flex-shrink-0"
             style={currentMode === 'plan' ? {
-              background: 'rgba(99,102,241,0.12)',
-              border: '1px solid rgba(99,102,241,0.3)',
-              color: '#6366f1',
+              background: 'rgba(59,130,246,0.12)',
+              border: '1px solid rgba(59,130,246,0.3)',
+              color: '#3B82F6',
             } : {
-              background: 'var(--bg-hover)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-muted)',
+              background: 'rgba(234,88,12,0.10)',
+              border: '1px solid rgba(234,88,12,0.3)',
+              color: '#EA580C',
             }}
             title="Click or press Tab to switch mode"
           >
@@ -863,7 +885,7 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
           </button>
 
           <p className="flex-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-            Tab · @ · Enter
+            Tab · @ · Enter · Esc×2
           </p>
 
           {sending ? (

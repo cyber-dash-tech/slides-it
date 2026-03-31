@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { findFiles } from '../lib/opencode-api'
+import { listEntries } from '../lib/slides-server-api'
 
 interface FileMatch {
   path: string
@@ -8,6 +9,7 @@ interface FileMatch {
 
 interface AtPopoverProps {
   query: string
+  workspacePath: string
   onSelect: (path: string, name: string) => void
   onClose: () => void
 }
@@ -23,21 +25,34 @@ function fileColor(name: string) {
   return colorMap[ext] ?? '#9CA3AF'
 }
 
-export default function AtPopover({ query, onSelect, onClose }: AtPopoverProps) {
+export default function AtPopover({ query, workspacePath, onSelect, onClose }: AtPopoverProps) {
   const [results, setResults] = useState<FileMatch[]>([])
   const [activeIdx, setActiveIdx] = useState(0)
   const [loading, setLoading] = useState(false)
   const debounceRef = useRef<number | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
-  // Debounced search — skip empty query
+  // Load files: empty query → workspace root files; non-empty → debounced search
   useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
     if (!query) {
-      setResults([])
-      setLoading(false)
+      // Show workspace root files immediately (no debounce needed)
+      setLoading(true)
+      listEntries(workspacePath)
+        .then((entries) => {
+          const files = entries
+            .filter((e) => e.type === 'file')
+            .map((e) => ({ path: e.path, name: e.name }))
+          setResults(files)
+          setActiveIdx(0)
+        })
+        .catch(() => setResults([]))
+        .finally(() => setLoading(false))
       return
     }
-    if (debounceRef.current) clearTimeout(debounceRef.current)
+
+    // Debounced search for non-empty query
     debounceRef.current = window.setTimeout(async () => {
       setLoading(true)
       try {
@@ -50,8 +65,9 @@ export default function AtPopover({ query, onSelect, onClose }: AtPopoverProps) 
         setLoading(false)
       }
     }, 120)
+
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [query])
+  }, [query, workspacePath])
 
   // Keyboard navigation
   useEffect(() => {
@@ -81,11 +97,13 @@ export default function AtPopover({ query, onSelect, onClose }: AtPopoverProps) 
     item?.scrollIntoView({ block: 'nearest' })
   }, [activeIdx])
 
-  // Empty query — show hint
-  if (!query) {
+  const headerLabel = query ? `Files · ${query}` : 'Files in workspace'
+
+  // Loading state
+  if (loading) {
     return (
       <div
-        className="absolute bottom-full mb-1 left-0 w-72 rounded-xl px-3 py-2 text-[11px] z-50"
+        className="absolute bottom-full mb-1 left-0 w-72 rounded-xl px-3 py-2.5 text-[11px] z-50 flex items-center gap-2"
         style={{
           background: 'var(--bg-surface)',
           border: '1px solid var(--border)',
@@ -93,12 +111,16 @@ export default function AtPopover({ query, onSelect, onClose }: AtPopoverProps) 
           color: 'var(--text-muted)',
         }}
       >
-        Type to search files…
+        <svg className="w-3 h-3 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+        </svg>
+        Loading…
       </div>
     )
   }
 
-  // Loading or no results
+  // No results
   if (!loading && results.length === 0) {
     return (
       <div
@@ -110,7 +132,7 @@ export default function AtPopover({ query, onSelect, onClose }: AtPopoverProps) 
           color: 'var(--text-muted)',
         }}
       >
-        No files found
+        {query ? 'No files found' : 'No files in workspace'}
       </div>
     )
   }
@@ -130,14 +152,8 @@ export default function AtPopover({ query, onSelect, onClose }: AtPopoverProps) 
         style={{ borderBottom: '1px solid var(--border)' }}
       >
         <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          Files · {query}
+          {headerLabel}
         </span>
-        {loading && (
-          <svg className="w-3 h-3 animate-spin" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-          </svg>
-        )}
       </div>
 
       {/* Results */}
@@ -185,4 +201,3 @@ export default function AtPopover({ query, onSelect, onClose }: AtPopoverProps) 
     </div>
   )
 }
-
