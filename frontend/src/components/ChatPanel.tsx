@@ -15,6 +15,7 @@ import {
   rejectQuestion,
   fileToFilePart,
   isAttachableAsFile,
+  injectContext,
   type FilePart,
   type Todo,
 } from '../lib/opencode-api'
@@ -28,7 +29,7 @@ import {
   type ToolEntry,
   type QuestionRequest,
 } from '../lib/typewriter'
-import { getModels, setModel, getSession, saveSession, uploadFiles, listIndustries, type IndustryEntry } from '../lib/slides-server-api'
+import { getModels, setModel, getSession, saveSession, uploadFiles, listIndustries, postReplay, checkReplayOverflow, type IndustryEntry } from '../lib/slides-server-api'
 import ThinkingDots from './ThinkingDots'
 import ToolBlock from './ToolBlock'
 import QuestionBlock from './QuestionBlock'
@@ -110,6 +111,36 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
   const questionBubbleRef = useRef<Map<string, string>>(new Map())
   // Track answered question labels for read-only display
   const questionAnswersRef = useRef<Map<string, string[][]>>(new Map())
+  // Sub-agent tracking: childSessionID → { bubbleId, taskPartId } so child tool events
+  // can be routed to the parent task tool's childTools array
+  const childSessionMapRef = useRef<Map<string, { bubbleId: string; taskPartId: string }>>(new Map())
+  // Running task tools awaiting child session association: partId → { bubbleId }
+  const pendingTaskToolsRef = useRef<Map<string, { bubbleId: string }>>(new Map())
+  // Replay — infinite context
+  const replayingRef = useRef(false)
+  const lastPromptRef = useRef<{
+    text: string; model?: string; mode: Mode; fileParts?: FilePart[]; system?: string
+  } | null>(null)
+  // Index in the messages array where the current session's own messages start.
+  // Messages before this index belong to parent sessions (loaded from chain).
+  const sessionStartIdxRef = useRef(0)
+  // Parent session ID for the current session (set during replay)
+  const parentSessionIdRef = useRef<string | undefined>(undefined)
+
+  /** Return only the current session's own messages (for saving to disk). */
+  function currentSessionMessages(): ChatMessage[] {
+    return messagesRef.current.slice(sessionStartIdxRef.current)
+  }
+
+  /** Save current session's messages to disk. */
+  function persistCurrentSession(): void {
+    if (!sessionIdRef.current) return
+    saveSession(
+      sessionIdRef.current,
+      currentSessionMessages(),
+      parentSessionIdRef.current,
+    ).catch(() => {})
+  }
 
   // ── Load models ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -198,19 +229,31 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
     flushAll(pendingCharsRef.current, setMessages)
   }, [])
 
-  // ── Session init ─────────────────────────────────────────────────────────
+   // ── Session init ─────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false
 
     async function initSession() {
       restoringRef.current = true   // block idle SSE handler during setup
 
-      // Load saved history from .slides-it/session-<id>.json (via server)
+      // Load saved history from .slides-it/session-<id>.json (via server).
+      // The server walks the parent chain and returns:
+      //   messages:        full reconstructed history (all sessions)
+      //   recent_messages: only the latest session's own messages
       let savedMessages: ChatMessage[] = []
+      let recentMessages: ChatMessage[] = []
+      let previousSessionId: string | null = null
       try {
         const saved = await getSession()
+        previousSessionId = saved.session_id ?? null
         if (saved.messages && saved.messages.length > 0) {
           savedMessages = (saved.messages as ChatMessage[]).map((m) => ({
+            ...m,
+            timestamp: new Date(m.timestamp),
+          }))
+        }
+        if (saved.recent_messages && saved.recent_messages.length > 0) {
+          recentMessages = (saved.recent_messages as ChatMessage[]).map((m) => ({
             ...m,
             timestamp: new Date(m.timestamp),
           }))
@@ -232,8 +275,34 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
           messagesRef.current = savedMessages
         }
 
-        // Write new session file immediately (pointer → new session, messages = saved history)
-        saveSession(s.id, savedMessages).catch(() => {})
+        // New messages in this session start after all loaded history
+        sessionStartIdxRef.current = savedMessages.length
+        // Link to the previous session so the chain stays connected
+        parentSessionIdRef.current = previousSessionId ?? undefined
+
+        // Write new session file — empty messages, linked to previous session
+        saveSession(
+          s.id,
+          [],
+          previousSessionId ?? undefined,
+        ).catch(() => {})
+
+        // ── Inject recent conversation history into the new OpenCode session ──
+        if (recentMessages.length > 0) {
+          const contextParts = recentMessages
+            .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.text)
+            .map((m) => `[${m.role}]: ${m.text}`)
+
+          if (contextParts.length > 0) {
+            const contextText =
+              '[Conversation history restored from previous session]\n\n' +
+              contextParts.join('\n\n') +
+              '\n\n[End of restored history — continue from here]'
+            // Fire-and-forget: inject context but don't block init.
+            // If it fails, the session still works — just without history context.
+            injectContext(s.id, contextText, activeSkill || undefined).catch(() => {})
+          }
+        }
       } catch (err) {
         console.error(err)
       } finally {
@@ -276,9 +345,7 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
         // Push save to next event loop tick so React has committed state
         // and messagesRef.current holds the fully settled messages
         setTimeout(() => {
-          if (sessionIdRef.current) {
-            saveSession(sessionIdRef.current, messagesRef.current).catch(() => {})
-          }
+          persistCurrentSession()
         }, 0)
       }
     }
@@ -286,16 +353,28 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
     if (type === 'session.error') {
       const errData = properties.error as { name?: string; data?: { message?: string } } | undefined
       const errMsg = errData?.data?.message ?? errData?.name ?? 'Unknown error'
-      setMessages((prev) => {
-        const last = prev[prev.length - 1]
-        if (last && last.role === 'assistant' && last.streaming && last.text === '') {
-          return prev.slice(0, -1).concat({ ...last, streaming: false, error: errMsg })
-        }
-        return [...prev, {
-          id: `err-${Date.now()}`, role: 'assistant', text: '', streaming: false,
-          error: errMsg, timestamp: new Date(), tools: [],
-        }]
-      })
+
+      // ── Replay: auto-detect context overflow and compact ────────────
+      // Skip if we're already replaying (prevent infinite loops)
+      if (!replayingRef.current && sessionIdRef.current) {
+        checkReplayOverflow(errMsg).then((res) => {
+          if (!res.is_overflow) return
+          performReplay()
+        }).catch(() => {})
+      }
+
+      if (!replayingRef.current) {
+        setMessages((prev) => {
+          const last = prev[prev.length - 1]
+          if (last && last.role === 'assistant' && last.streaming && last.text === '') {
+            return prev.slice(0, -1).concat({ ...last, streaming: false, error: errMsg })
+          }
+          return [...prev, {
+            id: `err-${Date.now()}`, role: 'assistant', text: '', streaming: false,
+            error: errMsg, timestamp: new Date(), tools: [],
+          }]
+        })
+      }
       runningToolRef.current = ''
       setRunningTool('')
       setSending(false)
@@ -321,6 +400,20 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
       // diffs no longer displayed — ignore
     }
 
+    // ── Child session created by Task tool — associate with pending task tool ──
+    if (type === 'session.created') {
+      const session = (properties as { info?: { id?: string; parentID?: string } }).info
+      if (session?.id && session.parentID === sessionIdRef.current) {
+        // Find the most recently registered pending task tool and associate it
+        const entries = Array.from(pendingTaskToolsRef.current.entries())
+        if (entries.length > 0) {
+          const [taskPartId, { bubbleId }] = entries[entries.length - 1]
+          childSessionMapRef.current.set(session.id, { bubbleId, taskPartId })
+          pendingTaskToolsRef.current.delete(taskPartId)
+        }
+      }
+    }
+
     if (type === 'file.edited') {
       const file = properties.file as string | undefined
       if (file?.endsWith('.html')) {
@@ -333,9 +426,11 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
     }
 
     if (type === 'message.updated') {
-      // Actual SSE structure: properties.info contains id, role, error
-      const info = (properties as { info: { id: string; role: string; error?: unknown } }).info
+      // Actual SSE structure: properties.info contains id, role, sessionID, error
+      const info = (properties as { info: { id: string; role: string; sessionID?: string; error?: unknown } }).info
       if (!info || info.role !== 'assistant') return
+      // Skip messages from child sessions (sub-agents) — they show via parent task tool
+      if (info.sessionID && info.sessionID !== sessionIdRef.current) return
       if (!msgMapRef.current.has(info.id)) {
         const bid = `a-${info.id}`
         msgMapRef.current.set(info.id, bid)
@@ -357,12 +452,13 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
     }
 
     if (type === 'message.part.updated') {
-      // Actual SSE structure: properties.part contains id, messageID, type, state, tool...
+      // Actual SSE structure: properties.part contains id, messageID, sessionID, type, state, tool...
       // partID and messageID are inside part, NOT at properties top-level
       const { part } = properties as {
         part: {
           id: string
           messageID: string
+          sessionID?: string
           type: string
           tool?: string
           state?: {
@@ -376,8 +472,47 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
       }
       const partID = part.id
       const messageID = part.messageID
+      const partSessionID = part.sessionID
       const state = part.state
       const status = state?.status ?? ''
+
+      // ── Child session tool events → route to parent task tool's childTools ──
+      if (partSessionID && partSessionID !== sessionIdRef.current) {
+        if (part.type === 'tool') {
+          const mapping = childSessionMapRef.current.get(partSessionID)
+          if (mapping) {
+            const childTool: ToolEntry = {
+              id: partID,
+              name: part.tool ?? '',
+              tool: part.tool ?? '',
+              status,
+              title: state?.title,
+              input: state?.input,
+              output: state?.output,
+              error: state?.error,
+            }
+            setMessages((prev) => prev.map((m) => {
+              if (m.id !== mapping.bubbleId) return m
+              return {
+                ...m,
+                tools: m.tools.map((t) => {
+                  if (t.id !== mapping.taskPartId) return t
+                  const existing = t.childTools ?? []
+                  const idx = existing.findIndex((ct) => ct.id === partID)
+                  if (idx >= 0) {
+                    const updated = [...existing]
+                    updated[idx] = childTool
+                    return { ...t, childTools: updated }
+                  }
+                  return { ...t, childTools: [...existing, childTool] }
+                }),
+              }
+            }))
+          }
+        }
+        return // skip all other child session part events
+      }
+
       partTypeRef.current.set(partID, part.type)
       const bubbleId = msgMapRef.current.get(messageID)
       if (!bubbleId) return
@@ -411,15 +546,22 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
           if (idx >= 0) { const tools = [...m.tools]; tools[idx] = toolEntry; return { ...m, tools } }
           return { ...m, tools: [...m.tools, toolEntry] }
         }))
+
+        // Register task tools so incoming child sessions can be associated
+        if (toolName === 'task' && status === 'running') {
+          pendingTaskToolsRef.current.set(partID, { bubbleId })
+        }
       }
     }
 
     if (type === 'message.part.delta') {
-      const { partID, messageID, field, delta } = properties as {
-        partID: string; messageID: string; field: string; delta?: string
+      const { partID, messageID, sessionID: deltaSessionID, field, delta } = properties as {
+        partID: string; messageID: string; sessionID?: string; field: string; delta?: string
       }
       if (!delta) return
       if (field !== 'text') return
+      // Skip child session text deltas — sub-agent output shown via task tool result
+      if (deltaSessionID && deltaSessionID !== sessionIdRef.current) return
 
       // Reasoning/thinking — accumulate into bubble's `thinking` field (don't typewrite)
       if (partTypeRef.current.get(partID) === 'reasoning') {
@@ -485,6 +627,83 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
     }
   }
 
+  // ── Replay: compact context and continue in a new session ─────────────
+  async function performReplay() {
+    const sid = sessionIdRef.current
+    if (!sid || replayingRef.current) return
+    replayingRef.current = true
+
+    // Save the old session's own messages before switching
+    persistCurrentSession()
+
+    // Remove the error bubble that triggered the replay (the overflow error)
+    setMessages((prev) => {
+      const last = prev[prev.length - 1]
+      if (last && last.role === 'assistant' && last.error) {
+        return prev.slice(0, -1)
+      }
+      return prev
+    })
+
+    // Show a system message: compacting...
+    const replayMsgId = `replay-${Date.now()}`
+    setMessages((prev) => [...prev, {
+      id: replayMsgId, role: 'system' as ChatMessage['role'], text: 'Compacting context...', streaming: false,
+      error: null, timestamp: new Date(), tools: [], compact: true,
+    }])
+    setSending(true)
+
+    try {
+      const result = await postReplay(sid)
+
+      // Switch to the new session
+      setSessionId(result.new_session_id)
+      sessionIdRef.current = result.new_session_id
+
+      // Update the system message to show completion + separator
+      setMessages((prev) => prev.map((m) =>
+        m.id === replayMsgId
+          ? { ...m, text: '--- Context compacted — conversation continues ---' }
+          : m
+      ))
+
+      // New session's own messages start after the compact separator.
+      // Wait for React to commit the state, then update the index and persist.
+      setTimeout(() => {
+        // The compact separator is the last "system" message; new messages follow it
+        sessionStartIdxRef.current = messagesRef.current.length
+        parentSessionIdRef.current = sid
+        // Save new session file — empty messages (nothing new yet), linked to old session
+        saveSession(result.new_session_id, [], sid).catch(() => {})
+      }, 0)
+
+      // Resend the last user message that failed due to overflow
+      const lastPrompt = lastPromptRef.current
+      if (lastPrompt) {
+        await sendPrompt(
+          result.new_session_id,
+          lastPrompt.text,
+          lastPrompt.model,
+          lastPrompt.mode,
+          lastPrompt.fileParts,
+          lastPrompt.system,
+        )
+      } else {
+        setSending(false)
+      }
+    } catch (e) {
+      // Replay itself failed — show the error
+      setMessages((prev) => prev.map((m) =>
+        m.id === replayMsgId
+          ? { ...m, text: '', error: `Replay failed: ${(e as Error).message}` }
+          : m
+      ))
+      setSending(false)
+    } finally {
+      replayingRef.current = false
+    }
+  }
+
   async function handleSend() {
     const text = input.trim()
     if (!text || sending || !sessionId) return
@@ -535,7 +754,17 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
 
     // Persist immediately so the user's message survives even if the agent crashes
     if (sessionIdRef.current) {
-      saveSession(sessionIdRef.current, [...messagesRef.current, userMsg]).catch(() => {})
+      const ownMsgs = [...currentSessionMessages(), userMsg]
+      saveSession(sessionIdRef.current, ownMsgs, parentSessionIdRef.current).catch(() => {})
+    }
+
+    // Save last prompt info so replay can resend it after context compaction
+    lastPromptRef.current = {
+      text: textWithRefs,
+      model: currentModel || undefined,
+      mode: currentMode,
+      fileParts,
+      system: activeSkill || undefined,
     }
 
     try {
@@ -616,12 +845,17 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
     if (rafRef.current) { clearTimeout(rafRef.current); rafRef.current = null }
     msgMapRef.current.clear(); partMapRef.current.clear(); partTypeRef.current.clear()
     questionBubbleRef.current.clear(); questionAnswersRef.current.clear()
+    childSessionMapRef.current.clear()
+    pendingTaskToolsRef.current.clear()
     setMessages([])
     setSending(false)
     runningToolRef.current = ''
     setRunningTool('')
     setAtReferences([])
     setAtQuery(null)
+    // Reset replay state — clean break, no parent chain
+    sessionStartIdxRef.current = 0
+    parentSessionIdRef.current = undefined
     const s = await createSession('slides-it').catch(() => null)
     if (s) {
       setSessionId(s.id)
@@ -1165,6 +1399,19 @@ function MessageBubble({
   // Todos bubble — render the dedicated TodoBubble component
   if (msg.role === 'todos') {
     return <TodoBubble todos={msg.todos ?? []} timestamp={msg.timestamp} />
+  }
+
+  // System bubble — replay separator / status messages
+  if (msg.role === 'system') {
+    return (
+      <div className="flex items-center gap-3 py-3 px-4">
+        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+        <span className="text-[11px] whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
+          {msg.error ?? msg.text}
+        </span>
+        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+      </div>
+    )
   }
 
   return (

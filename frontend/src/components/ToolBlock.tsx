@@ -34,7 +34,151 @@ function outputSummary(output?: string): string {
   return lines.slice(0, 3).join('\n') + `\n… (${lines.length - 3} more lines)`
 }
 
+// Format agent type for display: "explore" → "Explore Task", "general" → "General Task"
+function agentLabel(agent: string): string {
+  const first = agent.charAt(0).toUpperCase() + agent.slice(1)
+  return `${first} Task`
+}
+
+// ── SubtaskBlock — special rendering for task tool (sub-agent) ─────────────
+function SubtaskBlock({ tool }: ToolBlockProps) {
+  const [open, setOpen] = useState(false)
+
+  const isError = tool.status === 'error'
+  const isRunning = tool.status === 'running' || tool.status === 'pending'
+
+  const agent = (tool.input?.subagent_type ?? tool.input?.agent ?? 'task') as string
+  const description = (tool.input?.description ?? '') as string
+  const prompt = (tool.input?.prompt ?? '') as string
+
+  // Child tools spawned by this sub-agent (populated by ChatPanel SSE handler)
+  const childTools = tool.childTools ?? []
+
+  return (
+    <div className={`mb-1.5 ${isRunning ? 'animate-pulse' : ''}`}>
+      {/* Header: ∴ Explore Task — description */}
+      <button
+        className="w-full flex items-start gap-2 text-left py-1"
+        style={{ background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="font-mono text-[11px] flex-shrink-0 mt-px" style={{ color: 'var(--text-muted)' }}>
+          {isRunning ? '◌' : isError ? '✗' : '∴'}
+        </span>
+        <span className="text-[11px] leading-relaxed min-w-0">
+          <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>
+            {agentLabel(agent)}
+          </span>
+          {description && (
+            <span style={{ color: 'var(--text-muted)' }}>
+              {' — '}{description}
+            </span>
+          )}
+        </span>
+        {isRunning && (
+          <span className="text-[10px] ml-auto flex-shrink-0 mt-px" style={{ color: 'var(--text-muted)' }}>
+            running
+          </span>
+        )}
+      </button>
+
+      {/* Child tool lines: └ Read file.ts / └ Grep pattern */}
+      {childTools.length > 0 && (
+        <div className="ml-5 space-y-0.5">
+          {childTools.map((ct) => (
+            <div
+              key={ct.id}
+              className="flex items-center gap-1.5 text-[11px]"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <span className="font-mono flex-shrink-0">{'└'}</span>
+              <span className="font-mono font-medium flex-shrink-0" style={{ color: 'var(--text-secondary)' }}>
+                {formatToolName(ct.tool || ct.name)}
+              </span>
+              <span className="truncate min-w-0">
+                {inputSummary(ct.input)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Expanded: show full prompt + output */}
+      {open && (
+        <div className="ml-5 mt-1.5 space-y-2">
+          {prompt && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                Prompt
+              </p>
+              <pre
+                className="text-[11px] leading-relaxed overflow-x-auto rounded p-2"
+                style={{
+                  background: 'var(--bg-sidebar)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                  fontFamily: "'Söhne Mono', ui-monospace, monospace",
+                  maxHeight: '160px',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                }}
+              >
+                {prompt.length > 500 ? prompt.slice(0, 500) + '…' : prompt}
+              </pre>
+            </div>
+          )}
+          {tool.output && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+                Result
+              </p>
+              <pre
+                className="text-[11px] leading-relaxed overflow-x-auto rounded p-2"
+                style={{
+                  background: 'var(--bg-sidebar)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                  fontFamily: "'Söhne Mono', ui-monospace, monospace",
+                  maxHeight: '200px',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                }}
+              >
+                {outputSummary(tool.output)}
+              </pre>
+            </div>
+          )}
+          {tool.error && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--error)' }}>
+                Error
+              </p>
+              <pre
+                className="text-[11px] leading-relaxed rounded p-2"
+                style={{
+                  background: 'var(--error-bg)',
+                  border: '1px solid var(--error-border)',
+                  color: 'var(--error)',
+                  fontFamily: "'Söhne Mono', ui-monospace, monospace",
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                }}
+              >
+                {tool.error}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Standard ToolBlock ─────────────────────────────────────────────────────
 export default function ToolBlock({ tool }: ToolBlockProps) {
+  // Route task tool to the special SubtaskBlock renderer
+  if (tool.tool === 'task') return <SubtaskBlock tool={tool} />
+
   const [open, setOpen] = useState(false)
 
   const isError = tool.status === 'error'

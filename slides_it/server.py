@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import mimetypes
 import os
+import re
 import shutil
 import threading
 import pathlib
 import signal
 import subprocess
 import tempfile
+import urllib.error
 import urllib.request
 from contextlib import asynccontextmanager
 from typing import List
@@ -141,7 +144,8 @@ class DesignDetail(BaseModel):
 
 class SessionRequest(BaseModel):
     session_id: str
-    messages: list[dict] = []   # serialised ChatMessage[] from the frontend
+    parent_session_id: str = ""     # set during replay to link child → parent
+    messages: list[dict] = []       # serialised ChatMessage[] from the frontend
 
 
 class InstallDesignRequest(BaseModel):
@@ -188,6 +192,20 @@ class InstallIndustryRequest(BaseModel):
 class FileRenameRequest(BaseModel):
     path: str       # absolute path of the file/directory to rename
     new_name: str   # new filename only (not a full path), no path separators
+
+
+class FileCreateRequest(BaseModel):
+    name: str       # filename only (no path separators), created in workspace root
+
+
+class DirCreateRequest(BaseModel):
+    name: str       # directory name only (no path separators), created in workspace root
+
+
+class ReplayRequest(BaseModel):
+    session_id: str
+    provider_id: str = ""   # empty = auto-detect from active model
+    model_id: str = ""      # empty = auto-detect from active model
 
 
 # ---------------------------------------------------------------------------
@@ -271,6 +289,92 @@ def list_entries(path: str = Query(default="~")) -> list[FsEntry]:
     return entries
 
 
+_IGNORE_CONTENT = """\
+# slides-it: exclude binary/media files from AI file search (ripgrep respects this file
+# regardless of whether the directory is a git repository).
+
+# Images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.bmp
+*.ico
+*.tiff
+*.tif
+*.avif
+
+# Video
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.m4v
+*.wmv
+
+# Audio
+*.mp3
+*.wav
+*.ogg
+*.flac
+*.aac
+*.m4a
+
+# Documents
+*.pdf
+*.docx
+*.xlsx
+*.pptx
+*.doc
+*.xls
+*.ppt
+
+# Archives
+*.zip
+*.tar
+*.gz
+*.bz2
+*.7z
+*.rar
+*.tgz
+
+# Fonts
+*.woff
+*.woff2
+*.ttf
+*.otf
+*.eot
+
+# Database / compiled binary
+*.db
+*.sqlite
+*.sqlite3
+*.bin
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Hidden directories (dot-prefixed)
+.*/
+"""
+
+
+def _ensure_ignore_file(directory: pathlib.Path) -> None:
+    """
+    Write a .ignore file in the workspace root if one does not already exist.
+
+    ripgrep (used by OpenCode's grep/glob/list tools) reads .ignore unconditionally,
+    unlike .gitignore which requires a git repository. This prevents the AI from
+    accidentally scanning binary or media files.
+    """
+    ignore_path = directory / ".ignore"
+    if not ignore_path.exists():
+        ignore_path.write_text(_IGNORE_CONTENT, encoding="utf-8")
+
+
 @app.post("/api/start")
 def start_workspace(req: StartRequest) -> dict[str, str]:
     """
@@ -285,6 +389,9 @@ def start_workspace(req: StartRequest) -> dict[str, str]:
 
     # Create .slides-it directory in workspace (for future session persistence etc.)
     (directory / ".slides-it").mkdir(exist_ok=True)
+
+    # Write .ignore so ripgrep skips binary/media files even without a git repo
+    _ensure_ignore_file(directory)
 
     # If opencode is already healthy, just update workspace and reuse it
     if _is_opencode_healthy():
@@ -341,34 +448,75 @@ async def shutdown() -> dict[str, str]:
 @app.get("/api/session")
 def get_session() -> dict[str, object]:
     """
-    Return the persisted session ID and message history for the current workspace.
+    Return the persisted session state for the current workspace.
 
-    Also ensures .slides-it/ exists — so this is safe to call regardless of
-    whether /api/start was called (e.g. on browser refresh).
+    Walks the parent chain to reconstruct the full message history:
 
-    Layout inside <workspace>/.slides-it/:
-      current                   — plain text, contains the active session ID
-      session-<id>.json         — messages for that session
+        session-C.json  { parent: "ses_B", messages: [C's msgs] }
+        session-B.json  { parent: "ses_A", messages: [B's msgs] }
+        session-A.json  { messages: [A's msgs] }
+
+    Returns:
+        session_id:       current session ID (from the ``current`` pointer)
+        messages:         full reconstructed message history (A + compact + B + compact + C)
+        recent_messages:  only the current session's own messages (C's msgs)
+                          — used by the frontend to inject context on restart
     """
     if not _workspace_dir:
-        return {"session_id": None, "messages": []}
+        return {"session_id": None, "messages": [], "recent_messages": []}
     slides_dir = pathlib.Path(_workspace_dir) / ".slides-it"
-    # Ensure the directory exists unconditionally — browser refresh skips /api/start
     slides_dir.mkdir(exist_ok=True)
     current_file = slides_dir / "current"
     if not current_file.exists():
-        return {"session_id": None, "messages": []}
+        return {"session_id": None, "messages": [], "recent_messages": []}
     try:
         session_id = current_file.read_text(encoding="utf-8").strip()
         if not session_id:
-            return {"session_id": None, "messages": []}
-        session_file = slides_dir / f"session-{session_id}.json"
-        if not session_file.exists():
-            return {"session_id": session_id, "messages": []}
-        data = json.loads(session_file.read_text(encoding="utf-8"))
-        return {"session_id": session_id, "messages": data.get("messages", [])}
+            return {"session_id": None, "messages": [], "recent_messages": []}
+
+        # Walk the parent chain and collect each session's messages
+        chain: list[tuple[str, list[dict]]] = []  # [(sid, msgs), ...]
+        visited: set[str] = set()
+        sid: str | None = session_id
+        while sid and sid not in visited:
+            visited.add(sid)
+            sf = slides_dir / f"session-{sid}.json"
+            if not sf.exists():
+                break
+            data = json.loads(sf.read_text(encoding="utf-8"))
+            chain.append((sid, data.get("messages", [])))
+            sid = data.get("parent") or None
+
+        # chain is [current, parent, grandparent, ...] — reverse to get chronological order
+        chain.reverse()
+
+        # Build full message history with compact separators between sessions
+        all_messages: list[dict] = []
+        for i, (_sid, msgs) in enumerate(chain):
+            if i > 0 and msgs:
+                # Insert a compact separator between parent and child sessions
+                all_messages.append({
+                    "id": f"compact-{_sid}",
+                    "role": "system",
+                    "text": "--- Context compacted — conversation continues ---",
+                    "streaming": False,
+                    "error": None,
+                    "timestamp": msgs[0].get("timestamp") if msgs else None,
+                    "tools": [],
+                    "compact": True,
+                })
+            all_messages.extend(msgs)
+
+        # recent_messages = current session's own messages only
+        recent_messages = chain[-1][1] if chain else []
+
+        return {
+            "session_id": session_id,
+            "messages": all_messages,
+            "recent_messages": recent_messages,
+        }
     except Exception:
-        return {"session_id": None, "messages": []}
+        return {"session_id": None, "messages": [], "recent_messages": []}
 
 
 @app.put("/api/session")
@@ -376,16 +524,35 @@ def save_session(req: SessionRequest) -> dict[str, str]:
     """
     Persist messages to <workspace>/.slides-it/session-<id>.json
     and update the 'current' pointer.
-    Old session files are kept (not deleted).
+
+    Each session file stores only its own messages.  The optional
+    ``parent_session_id`` field links to the previous session (set during
+    replay).  Old session files are kept (not deleted).
     """
     if not _workspace_dir:
         raise HTTPException(status_code=400, detail="No active workspace")
     slides_dir = pathlib.Path(_workspace_dir) / ".slides-it"
     slides_dir.mkdir(exist_ok=True)
-    # Write messages to the session-scoped file
+
+    # Build the session data — only this session's messages
+    session_data: dict[str, object] = {"messages": req.messages}
+    if req.parent_session_id:
+        session_data["parent"] = req.parent_session_id
+
     session_file = slides_dir / f"session-{req.session_id}.json"
+
+    # If the file already exists and has a parent, preserve the parent link
+    # even if this save call doesn't include it (e.g. session.idle auto-save)
+    if not req.parent_session_id and session_file.exists():
+        try:
+            existing = json.loads(session_file.read_text(encoding="utf-8"))
+            if existing.get("parent"):
+                session_data["parent"] = existing["parent"]
+        except Exception:
+            pass
+
     session_file.write_text(
-        json.dumps({"messages": req.messages}, ensure_ascii=False),
+        json.dumps(session_data, ensure_ascii=False),
         encoding="utf-8",
     )
     # Update the current pointer
@@ -1034,6 +1201,301 @@ def delete_file(path: str = Query(...)) -> dict[str, str]:
         target.unlink()
 
     return {"path": str(target), "status": "deleted"}
+
+
+@app.post("/api/file")
+def create_file(req: FileCreateRequest) -> dict[str, str]:
+    """
+    Create an empty file inside the workspace root.
+
+    Args:
+        name: Filename only (no path separators).
+
+    Returns:
+        { "path": "<absolute path of new file>" }
+    """
+    if not _workspace_dir:
+        raise HTTPException(status_code=400, detail="No active workspace")
+
+    name = req.name.strip()
+    if not name or "/" in name or "\\" in name or name in (".", ".."):
+        raise HTTPException(status_code=400, detail="Invalid file name")
+
+    target = pathlib.Path(_workspace_dir).resolve() / name
+    if target.exists():
+        raise HTTPException(status_code=409, detail=f"Already exists: {name}")
+
+    target.touch()
+    return {"path": str(target), "status": "created"}
+
+
+@app.post("/api/mkdir")
+def create_directory(req: DirCreateRequest) -> dict[str, str]:
+    """
+    Create a directory inside the workspace root.
+
+    Args:
+        name: Directory name only (no path separators).
+
+    Returns:
+        { "path": "<absolute path of new directory>" }
+    """
+    if not _workspace_dir:
+        raise HTTPException(status_code=400, detail="No active workspace")
+
+    name = req.name.strip()
+    if not name or "/" in name or "\\" in name or name in (".", ".."):
+        raise HTTPException(status_code=400, detail="Invalid directory name")
+
+    target = pathlib.Path(_workspace_dir).resolve() / name
+    if target.exists():
+        raise HTTPException(status_code=409, detail=f"Already exists: {name}")
+
+    target.mkdir(parents=True)
+    return {"path": str(target), "status": "created"}
+
+
+# ---------------------------------------------------------------------------
+# Replay — infinite context
+# ---------------------------------------------------------------------------
+
+_replay_log = logging.getLogger("slides-it.replay")
+
+# Patterns that signal the LLM provider rejected the request because the
+# conversation exceeded the model's context window.
+_OVERFLOW_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"context.{0,20}(too long|too large|exceed|overflow)", re.I),
+    re.compile(r"(max|maximum).{0,20}(token|context).{0,20}(limit|exceed)", re.I),
+    re.compile(r"(token|context).{0,20}(limit|budget).{0,20}(exceed|reach)", re.I),
+    re.compile(r"request too large", re.I),
+    re.compile(r"prompt is too long", re.I),
+    re.compile(r"content_too_large", re.I),
+    re.compile(r"input.*too long", re.I),
+    re.compile(r"max_tokens_exceeded", re.I),
+    re.compile(r"context_length_exceeded", re.I),
+    re.compile(r"token limit", re.I),
+]
+
+
+def _is_context_overflow(error_msg: str) -> bool:
+    """Return True if *error_msg* looks like a context-window overflow."""
+    return any(pat.search(error_msg) for pat in _OVERFLOW_PATTERNS)
+
+
+def _opencode_get(path: str) -> list | dict:
+    """GET request to OpenCode server, return parsed JSON."""
+    url = f"http://localhost:{OPENCODE_PORT}{path}"
+    req = urllib.request.Request(url)
+    req.add_header("Content-Type", "application/json")
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read())
+
+
+def _opencode_post(
+    path: str, body: dict, *, expect_json: bool = True
+) -> dict | list | bool | str | None:
+    """POST request to OpenCode server."""
+    url = f"http://localhost:{OPENCODE_PORT}{path}"
+    data = json.dumps(body).encode()
+    req = urllib.request.Request(url, data=data, method="POST")
+    req.add_header("Content-Type", "application/json")
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        raw = resp.read()
+        if not raw or resp.status == 204:
+            return None
+        if expect_json:
+            return json.loads(raw)
+        return raw.decode(errors="replace")
+
+
+def _replay_summarize(session_id: str, provider_id: str, model_id: str) -> bool:
+    """Call POST /session/{id}/summarize and return success."""
+    body = {"providerID": provider_id, "modelID": model_id}
+    resp = _opencode_post(f"/session/{session_id}/summarize", body)
+    return resp is True or resp == "true"
+
+
+def _replay_extract_summary(session_id: str) -> str:
+    """
+    Read back messages and find the summary generated by ``summarize``.
+
+    The summarize call appends a user message with a ``compaction`` part
+    followed by an assistant message whose ``text`` parts contain the summary.
+    """
+    messages: list[dict] = _opencode_get(f"/session/{session_id}/message")
+
+    # Walk from the end — find the assistant message right after compaction.
+    for i in range(len(messages) - 1, -1, -1):
+        msg = messages[i]
+        if msg["info"]["role"] != "assistant":
+            continue
+        # Check if the previous message is a compaction marker
+        if i > 0:
+            prev_parts = messages[i - 1].get("parts", [])
+            if any(p.get("type") == "compaction" for p in prev_parts):
+                texts = [
+                    p["text"]
+                    for p in msg.get("parts", [])
+                    if p.get("type") == "text" and p.get("text")
+                ]
+                if texts:
+                    return "\n\n".join(texts)
+
+    # Fallback: grab the last assistant text
+    for i in range(len(messages) - 1, -1, -1):
+        msg = messages[i]
+        if msg["info"]["role"] == "assistant":
+            texts = [
+                p["text"]
+                for p in msg.get("parts", [])
+                if p.get("type") == "text" and p.get("text")
+            ]
+            if texts:
+                return "\n\n".join(texts)
+
+    return ""
+
+
+def _replay_create_child(parent_id: str) -> dict:
+    """Create a new session with parentID pointing to the old one."""
+    return _opencode_post("/session", {"parentID": parent_id, "title": "slides-it"})
+
+
+def _replay_inject_context(
+    session_id: str, summary: str, system_prompt: str | None = None
+) -> None:
+    """Inject compacted context into the new session without triggering AI reply."""
+    context = (
+        "[Context from previous conversation — compacted]\n\n"
+        f"{summary}\n\n"
+        "[End of compacted context — continue the conversation from here]"
+    )
+    body: dict = {
+        "noReply": True,
+        "parts": [{"type": "text", "text": context}],
+    }
+    if system_prompt:
+        body["system"] = system_prompt
+    _opencode_post(f"/session/{session_id}/prompt_async", body, expect_json=False)
+
+
+def _do_replay(
+    session_id: str,
+    provider_id: str,
+    model_id: str,
+    system_prompt: str | None = None,
+) -> dict[str, str]:
+    """
+    Execute the full replay flow:
+
+    1. Summarize the current session (compaction)
+    2. Extract the summary text from the compaction messages
+    3. Create a new child session
+    4. Inject the summary into the child session as context
+
+    Returns dict with ``new_session_id``, ``parent_session_id``, ``summary``.
+    """
+    _replay_log.info("replay: starting for session %s", session_id)
+
+    # 1. Summarize
+    _replay_log.info("replay: step 1 — summarize")
+    ok = _replay_summarize(session_id, provider_id, model_id)
+    if not ok:
+        raise RuntimeError(f"summarize returned failure for session {session_id}")
+
+    # 2. Extract summary
+    _replay_log.info("replay: step 2 — extract summary")
+    summary = _replay_extract_summary(session_id)
+    if not summary:
+        raise RuntimeError(f"could not extract summary from session {session_id}")
+    _replay_log.info("replay: summary %d chars", len(summary))
+
+    # 3. Create child session
+    _replay_log.info("replay: step 3 — create child session")
+    new_session = _replay_create_child(session_id)
+    new_id = new_session["id"]
+    _replay_log.info("replay: new session %s (parent=%s)", new_id, session_id)
+
+    # 4. Inject context
+    _replay_log.info("replay: step 4 — inject context into %s", new_id)
+    _replay_inject_context(new_id, summary, system_prompt)
+
+    _replay_log.info("replay: complete — %s → %s", session_id, new_id)
+    return {
+        "new_session_id": new_id,
+        "parent_session_id": session_id,
+        "summary": summary,
+    }
+
+
+@app.post("/api/replay")
+def replay(req: ReplayRequest) -> dict[str, str]:
+    """
+    Compact the current session and continue in a new child session.
+
+    The frontend calls this when context overflows (automatically) or
+    when the user clicks a "Compact" button (manually).
+
+    If ``provider_id`` / ``model_id`` are empty, the active model from
+    the slides-it config is used.
+    """
+    if not _workspace_dir:
+        raise HTTPException(status_code=400, detail="No active workspace")
+
+    # Resolve provider/model — fall back to the active model in config
+    provider_id = req.provider_id
+    model_id = req.model_id
+    if not provider_id or not model_id:
+        dm = DesignManager()
+        current = dm.get_model()  # e.g. "anthropic/claude-sonnet-4-6"
+        if current and "/" in current:
+            provider_id = provider_id or current.split("/", 1)[0]
+            model_id = model_id or current.split("/", 1)[1]
+    if not provider_id or not model_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot determine model for summarization. Set provider_id and model_id, or configure an active model.",
+        )
+
+    # Optionally build the system prompt so it is injected into the new session
+    system_prompt: str | None = None
+    try:
+        dm = DesignManager()
+        active_design = dm.get_active()
+        im = IndustryManager()
+        active_industry = im.get_active()
+        system_prompt = dm.build_prompt(active_design, active_industry)
+    except Exception:
+        pass  # non-fatal — the new session will still work without a system prompt
+
+    try:
+        result = _do_replay(req.session_id, provider_id, model_id, system_prompt)
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")[:500]
+        raise HTTPException(
+            status_code=502, detail=f"OpenCode error: HTTP {e.code} — {body}"
+        ) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Replay failed: {e}") from e
+
+    return result
+
+
+@app.post("/api/replay/check")
+def replay_check(body: dict[str, str]) -> dict[str, bool]:
+    """
+    Check if an error message indicates a context overflow.
+
+    Body: ``{ "error": "..." }``
+    Returns: ``{ "is_overflow": true/false }``
+
+    The frontend calls this from the session.error SSE handler to decide
+    whether to trigger an automatic replay.
+    """
+    error_msg = body.get("error", "")
+    return {"is_overflow": _is_context_overflow(error_msg)}
 
 
 # ---------------------------------------------------------------------------

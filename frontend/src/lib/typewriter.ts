@@ -37,7 +37,7 @@ export function flushAll(
 // Re-export ChatMessage so the engine and components share the same type
 export interface ChatMessage {
   id: string
-  role: 'user' | 'assistant' | 'todos'
+  role: 'user' | 'assistant' | 'todos' | 'system'
   text: string
   streaming: boolean
   error: string | null
@@ -52,6 +52,7 @@ export interface ChatMessage {
   }
   attachmentNames?: string[]    // @ referenced file names, shown as badges
   todos?: TodoItem[]            // populated when role === 'todos'
+  compact?: boolean             // true = replay compaction separator (role === 'system')
 }
 
 // Inline todo item type (mirrors opencode-api Todo, kept local to avoid circular imports)
@@ -71,6 +72,7 @@ export interface ToolEntry {
   input?: Record<string, unknown>   // raw input object from ToolState
   output?: string             // result text (completed state)
   error?: string              // error message (error state)
+  childTools?: ToolEntry[]    // sub-agent tool calls (populated for task tool only)
 }
 
 // ── AskUserQuestion types (mirrors opencode QuestionRequest schema) ──────────

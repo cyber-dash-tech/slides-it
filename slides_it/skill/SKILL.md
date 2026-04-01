@@ -466,3 +466,22 @@ After the `---` separators below, two additional sections may appear:
    layout variants. Apply it precisely — it overrides any default aesthetic preferences.
 
 If only one `---` section follows, it is the visual style (no industry is active).
+
+---
+
+## File Access Rules
+
+Never read, grep, or glob binary or media files. If a file path ends with any of
+the extensions listed below, skip it entirely — do not attempt to read its contents.
+The workspace `.ignore` file already excludes them from search results, but if you
+encounter such a path through other means, ignore it unless the user explicitly asks
+you to process that specific file.
+
+Excluded extensions:
+`.png` `.jpg` `.jpeg` `.gif` `.webp` `.bmp` `.ico` `.tiff` `.tif` `.avif`
+`.mp4` `.mov` `.avi` `.mkv` `.webm` `.m4v` `.wmv`
+`.mp3` `.wav` `.ogg` `.flac` `.aac` `.m4a`
+`.pdf` `.docx` `.xlsx` `.pptx` `.doc` `.xls` `.ppt`
+`.zip` `.tar` `.gz` `.bz2` `.7z` `.rar` `.tgz`
+`.woff` `.woff2` `.ttf` `.otf` `.eot`
+`.db` `.sqlite` `.sqlite3` `.bin` `.exe` `.dll` `.so` `.dylib`

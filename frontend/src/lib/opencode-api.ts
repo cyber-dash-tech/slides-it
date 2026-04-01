@@ -268,3 +268,22 @@ export async function fileToFilePart(path: string): Promise<FilePart> {
   }
 }
 
+/**
+ * Inject context into a session without triggering an AI reply.
+ * Used to restore conversation history on page refresh / restart.
+ */
+export function injectContext(
+  sessionId: string,
+  contextText: string,
+  system?: string,
+): Promise<void> {
+  return request<void>(`/session/${sessionId}/prompt_async`, {
+    method: 'POST',
+    body: JSON.stringify({
+      noReply: true,
+      parts: [{ type: 'text', text: contextText }],
+      ...(system ? { system } : {}),
+    }),
+  })
+}
+

@@ -16,6 +16,7 @@ function toolLabel(name: string): string {
     web_search: 'Searching web',
     web_fetch: 'Fetching URL',
     computer: 'Using computer',
+    task: 'Running task',
   }
   const friendly = map[name]
   if (friendly) return friendly + '…'

@@ -4,6 +4,8 @@ import {
   uploadFiles,
   renameFile,
   deleteFile,
+  createFile,
+  createFolder,
   getFileServeUrl,
   type FsEntry,
 } from '../lib/slides-server-api'
@@ -13,8 +15,6 @@ interface FileTreeProps {
   refreshToken?: number
   onFileClick?: (path: string) => void
 }
-
-type LiveMode = 'off' | 'polling'
 
 const colorMap: Record<string, string> = {
   py: '#3B82F6', ts: '#60A5FA', tsx: '#60A5FA',
@@ -275,11 +275,7 @@ function DeleteConfirm({ node, onConfirm, onCancel }: {
 export default function FileTree({ workspacePath, refreshToken, onFileClick }: FileTreeProps) {
   const [roots, setRoots] = useState<TreeNodeState[]>([])
   const [error, setError] = useState('')
-  const [liveMode, setLiveMode] = useState<LiveMode>('off')
   const [isDragOver, setIsDragOver] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const pollingRef = useRef<number | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCounterRef = useRef(0)
 
   // Context menu
@@ -293,6 +289,10 @@ export default function FileTree({ workspacePath, refreshToken, onFileClick }: F
   // Toast feedback
   const [toast, setToast] = useState('')
   const toastTimerRef = useRef<number | null>(null)
+  // Create file / folder inline input
+  const [creatingType, setCreatingType] = useState<'file' | 'folder' | null>(null)
+  const [createName, setCreateName] = useState('')
+  const createInputRef = useRef<HTMLInputElement>(null)
 
   function showToast(msg: string) {
     setToast(msg)
@@ -304,7 +304,7 @@ export default function FileTree({ workspacePath, refreshToken, onFileClick }: F
     if (!workspacePath) return
     try {
       const entries = await listEntries(workspacePath)
-      setRoots(entries.map(toState))
+      setRoots(entries.filter(e => !e.name.startsWith('.')).map(toState))
       setError('')
     } catch (e) {
       setError((e as Error).message)
@@ -321,18 +321,6 @@ export default function FileTree({ workspacePath, refreshToken, onFileClick }: F
       renameInputRef.current.select()
     }
   }, [renamingPath])
-
-  function toggleLiveSync() {
-    if (liveMode !== 'off') {
-      if (pollingRef.current) clearInterval(pollingRef.current)
-      pollingRef.current = null
-      setLiveMode('off')
-      return
-    }
-    pollingRef.current = window.setInterval(loadRoots, 4000)
-    setLiveMode('polling')
-  }
-  useEffect(() => () => { if (pollingRef.current) clearInterval(pollingRef.current) }, [])
 
   async function toggleDir(path: string) {
     const current = findNode(roots, path)
@@ -352,7 +340,7 @@ export default function FileTree({ workspacePath, refreshToken, onFileClick }: F
         updateTree(p, path, (n) => ({
           ...n,
           loading: false,
-          children: children.map(toState),
+          children: children.filter(e => !e.name.startsWith('.')).map(toState),
         })),
       )
     } catch {
@@ -363,14 +351,11 @@ export default function FileTree({ workspacePath, refreshToken, onFileClick }: F
   async function handleUpload(files: FileList | File[]) {
     const fileArr = Array.from(files)
     if (!fileArr.length) return
-    setUploading(true)
     try {
       await uploadFiles(fileArr)
       await loadRoots()
     } catch (e) {
       setError(`Upload failed: ${(e as Error).message}`)
-    } finally {
-      setUploading(false)
     }
   }
 
@@ -461,6 +446,36 @@ export default function FileTree({ workspacePath, refreshToken, onFileClick }: F
     }
   }
 
+  function handleStartCreate(type: 'file' | 'folder') {
+    setCreatingType(type)
+    setCreateName('')
+  }
+
+  async function handleCommitCreate() {
+    const name = createName.trim()
+    if (!name) { setCreatingType(null); return }
+    try {
+      if (creatingType === 'file') {
+        await createFile(name)
+      } else {
+        await createFolder(name)
+      }
+      setCreatingType(null)
+      setCreateName('')
+      await loadRoots()
+    } catch (e) {
+      showToast((e as Error).message)
+      setCreatingType(null)
+    }
+  }
+
+  // Focus create input when it appears
+  useEffect(() => {
+    if (creatingType && createInputRef.current) {
+      createInputRef.current.focus()
+    }
+  }, [creatingType])
+
   return (
     <div
       className="w-full h-full flex flex-col overflow-hidden relative"
@@ -473,15 +488,6 @@ export default function FileTree({ workspacePath, refreshToken, onFileClick }: F
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        className="hidden"
-        onChange={(e) => e.target.files && handleUpload(e.target.files)}
-      />
-
       {/* Header */}
       <div
         className="px-3 py-2 flex items-center justify-between flex-shrink-0"
@@ -494,44 +500,96 @@ export default function FileTree({ workspacePath, refreshToken, onFileClick }: F
         >
           {workspacePath.split('/').pop() || workspacePath}
         </span>
-        <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
-          {/* Upload button */}
+        <div className="flex items-center gap-0.5 ml-2 flex-shrink-0">
+          {/* Refresh */}
           <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center transition-colors"
+            onClick={loadRoots}
+            className="flex items-center justify-center w-5 h-5 rounded transition-colors"
             style={{ color: 'var(--text-muted)' }}
-            title="Upload files to workspace"
+            title="Refresh"
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
-            {uploading ? (
-              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
-            ) : (
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-            )}
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
           </button>
 
-          {/* Live sync toggle */}
+          {/* New File */}
           <button
-            onClick={toggleLiveSync}
-            className="text-[10px] flex items-center gap-1 transition-colors"
-            style={{ color: liveMode !== 'off' ? 'var(--green-dot)' : 'var(--text-muted)' }}
+            onClick={() => handleStartCreate('file')}
+            className="flex items-center justify-center w-5 h-5 rounded transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            title="New File"
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
-            {liveMode !== 'off' && (
-              <span
-                className="w-1.5 h-1.5 rounded-full animate-pulse"
-                style={{ background: 'var(--green-dot)' }}
-              />
-            )}
-            {liveMode === 'off' ? 'sync' : 'live'}
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </button>
+
+          {/* New Folder */}
+          <button
+            onClick={() => handleStartCreate('folder')}
+            className="flex items-center justify-center w-5 h-5 rounded transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            title="New Folder"
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M9 13h6m-3-3v6M3 7a2 2 0 012-2h3.172a2 2 0 011.414.586l1.414 1.414A2 2 0 0012.414 8H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+            </svg>
           </button>
         </div>
       </div>
+
+      {/* Inline create input */}
+      {creatingType && (
+        <div
+          className="px-3 py-1.5 flex items-center gap-1.5 flex-shrink-0"
+          style={{ borderBottom: '1px solid var(--border)' }}
+        >
+          {creatingType === 'file' ? (
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"
+              style={{ color: '#9CA3AF' }}>
+              <path fillRule="evenodd"
+                d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+                clipRule="evenodd" />
+            </svg>
+          ) : (
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"
+              style={{ color: '#F59E0B' }}>
+              <path fillRule="evenodd"
+                d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
+                clipRule="evenodd" />
+            </svg>
+          )}
+          <input
+            ref={createInputRef}
+            value={createName}
+            onChange={e => setCreateName(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); handleCommitCreate() }
+              if (e.key === 'Escape') { e.preventDefault(); setCreatingType(null) }
+            }}
+            onBlur={() => setCreatingType(null)}
+            placeholder={creatingType === 'file' ? 'filename.ext' : 'folder-name'}
+            className="text-xs flex-1 min-w-0 rounded px-1"
+            style={{
+              color: 'var(--text-primary)',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--btn-send)',
+              outline: 'none',
+              fontFamily: 'inherit',
+            }}
+          />
+        </div>
+      )}
 
       {/* Drop overlay */}
       {isDragOver && (

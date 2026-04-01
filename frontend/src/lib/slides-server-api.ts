@@ -299,15 +299,35 @@ export function getFileBase64(path: string): Promise<{ base64: string; mime: str
 }
 
 /** Return the persisted session ID and message history for the current workspace. */
-export function getSession(): Promise<{ session_id: string | null; messages: object[] }> {
-  return request<{ session_id: string | null; messages: object[] }>('/api/session')
+export function getSession(): Promise<{
+  session_id: string | null
+  messages: object[]
+  recent_messages: object[]
+}> {
+  return request<{
+    session_id: string | null
+    messages: object[]
+    recent_messages: object[]
+  }>('/api/session')
 }
 
-/** Persist the active session ID and message history to .slides-it/history.json. */
-export function saveSession(sessionId: string, messages: object[]): Promise<{ status: string }> {
+/**
+ * Persist the current session's own messages to .slides-it/session-<id>.json.
+ * If parentSessionId is provided, it is written into the JSON so that
+ * get_session() can reconstruct the full chain on next load.
+ */
+export function saveSession(
+  sessionId: string,
+  messages: object[],
+  parentSessionId?: string,
+): Promise<{ status: string }> {
   return request<{ status: string }>('/api/session', {
     method: 'PUT',
-    body: JSON.stringify({ session_id: sessionId, messages }),
+    body: JSON.stringify({
+      session_id: sessionId,
+      messages,
+      parent_session_id: parentSessionId ?? '',
+    }),
   })
 }
 
@@ -340,5 +360,61 @@ export function deleteFile(path: string): Promise<{ path: string; status: string
     `/api/file?path=${encodeURIComponent(path)}`,
     { method: 'DELETE' },
   )
+}
+
+/** Create an empty file in the workspace root. */
+export function createFile(name: string): Promise<{ path: string; status: string }> {
+  return request<{ path: string; status: string }>('/api/file', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  })
+}
+
+/** Create a directory in the workspace root. */
+export function createFolder(name: string): Promise<{ path: string; status: string }> {
+  return request<{ path: string; status: string }>('/api/mkdir', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Replay — infinite context
+// ---------------------------------------------------------------------------
+
+export interface ReplayResult {
+  new_session_id: string
+  parent_session_id: string
+  summary: string
+}
+
+/**
+ * Compact the current session and continue in a new child session.
+ * Called automatically on context overflow, or manually by the user.
+ */
+export function postReplay(
+  sessionId: string,
+  providerId?: string,
+  modelId?: string,
+): Promise<ReplayResult> {
+  return request<ReplayResult>('/api/replay', {
+    method: 'POST',
+    body: JSON.stringify({
+      session_id: sessionId,
+      provider_id: providerId ?? '',
+      model_id: modelId ?? '',
+    }),
+  })
+}
+
+/**
+ * Check if an error message indicates a context overflow.
+ * Returns { is_overflow: boolean }.
+ */
+export function checkReplayOverflow(error: string): Promise<{ is_overflow: boolean }> {
+  return request<{ is_overflow: boolean }>('/api/replay/check', {
+    method: 'POST',
+    body: JSON.stringify({ error }),
+  })
 }
 
