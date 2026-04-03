@@ -925,22 +925,22 @@ export default function ChatPanel({ workspacePath, activeSkill, activeDesign, on
     if (files.length === 0) return
 
     try {
-      const { uploaded } = await uploadFiles(files)
+      const { uploaded } = await uploadFiles(files, 'tmp')
       // Insert [@filename] tags at cursor position for each uploaded file
       const el = textareaRef.current
       if (!el) return
       const pos = el.selectionStart ?? input.length
       const before = input.slice(0, pos)
       const after = input.slice(pos)
-      const tags = uploaded.map((f) => `[@${f}]`).join(' ')
+      const tags = uploaded.map((f) => `[@tmp/${f}]`).join(' ')
       const newVal = `${before}${tags} ${after}`
       setInput(newVal)
 
       for (const filename of uploaded) {
-        const fullPath = `${workspacePath}/${filename}`
+        const fullPath = `${workspacePath}/tmp/${filename}`
         setAtReferences((prev) => {
           if (prev.find((r) => r.path === fullPath)) return prev
-          return [...prev, { path: fullPath, name: filename }]
+          return [...prev, { path: fullPath, name: 'tmp/' + filename }]
         })
       }
 

@@ -105,7 +105,7 @@ body {
 
 .nav-dots {
   position: fixed;
-  right: clamp(1rem, 2vw, 1.5rem);
+  right: 20px;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
@@ -127,7 +127,7 @@ body {
 }
 
 /* ===========================================
-   SLIDE BASE — 16:9 aspect ratio enforced
+   SLIDE BASE — 1920×1080 fixed canvas, scaled by JS
    =========================================== */
 .slide {
   height: 100vh; height: 100dvh;
@@ -137,19 +137,16 @@ body {
   align-items: center;
   justify-content: center;
 }
-.slide-inner {
-  width: 100%;
-  max-width: min(1060px, calc(100dvh * 16 / 9));
-  max-height: 100dvh;
-  aspect-ratio: 16 / 9;
-  margin: 0 auto;
+.slide-canvas {
+  width: 1920px;
+  height: 1080px;
+  transform-origin: center center;
+  overflow: hidden;
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: clamp(1.5rem, 3vw, 3rem);
-}
-.slide-inner.wide {
-  max-width: min(1200px, calc(100dvh * 16 / 9));
+  padding: 60px 80px;
 }
 
 /* ===========================================
@@ -177,10 +174,10 @@ body {
 }
 
 /* ===========================================
-   TYPOGRAPHY
+   TYPOGRAPHY — fixed px for 1920×1080 canvas
    =========================================== */
 .label {
-  font-size: 0.7rem;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -188,39 +185,39 @@ body {
 }
 h1 {
   font-family: 'DM Serif Display', serif;
-  font-size: clamp(2.2rem, 5vw, 4rem);
+  font-size: 64px;
   font-weight: 400;
   line-height: 1.15;
   letter-spacing: -0.02em;
 }
 h2 {
   font-family: 'DM Serif Display', serif;
-  font-size: clamp(1.6rem, 3vw, 2.6rem);
+  font-size: 42px;
   font-weight: 400;
   line-height: 1.2;
   letter-spacing: -0.01em;
 }
 .subtitle {
-  font-size: clamp(1rem, 1.8vw, 1.35rem);
+  font-size: 22px;
   color: var(--text-secondary);
   font-weight: 300;
   line-height: 1.6;
 }
 .body-text {
-  font-size: clamp(0.85rem, 1.2vw, 1rem);
+  font-size: 16px;
   color: var(--text-secondary);
   line-height: 1.75;
 }
 .divider {
   border: none;
   border-top: 1px solid var(--border);
-  margin: 1.5rem 0;
+  margin: 24px 0;
 }
 .heading-rule {
   border: none;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 1rem;
-  margin-bottom: 1.5rem;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
 }
 
 /* ===========================================
@@ -229,7 +226,9 @@ h2 {
 .card-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+  gap: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 .card {
   background: var(--bg-card);
@@ -237,7 +236,7 @@ h2 {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: clamp(1rem, 2vw, 1.5rem);
+  padding: 24px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.06);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
@@ -246,26 +245,26 @@ h2 {
   box-shadow: 0 8px 24px rgba(0,0,0,0.10);
 }
 .card-icon {
-  width: 1.75rem; height: 1.75rem;
+  width: 28px; height: 28px;
   color: var(--accent-2);
-  margin-bottom: 0.5rem;
+  margin-bottom: 8px;
   transition: transform 0.2s ease;
 }
 .card:hover .card-icon { transform: scale(1.05); }
 .card-label {
-  font-size: 0.7rem;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
-  margin-bottom: 0.5rem;
+  margin-bottom: 8px;
 }
 .card-title {
   font-family: 'DM Serif Display', serif;
-  font-size: clamp(1rem, 1.8vw, 1.4rem);
-  margin-bottom: 0.5rem;
+  font-size: 22px;
+  margin-bottom: 8px;
 }
 .card-body {
-  font-size: 0.85rem;
+  font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.6;
 }
@@ -276,7 +275,9 @@ h2 {
 .stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: clamp(1rem, 2vw, 2rem);
+  gap: 32px;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 .stat-card {
   background: var(--bg-card);
@@ -284,22 +285,22 @@ h2 {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: clamp(1.5rem, 2.5vw, 2.5rem);
+  padding: 40px;
   text-align: center;
   box-shadow: 0 2px 12px rgba(0,0,0,0.06);
   border-bottom: 2px solid var(--border-strong);
 }
 .stat-number {
   font-family: 'DM Serif Display', serif;
-  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-size: 64px;
   font-weight: 400;
   color: var(--text-primary);
   line-height: 1;
   letter-spacing: -0.03em;
-  margin-bottom: 0.5rem;
+  margin-bottom: 8px;
 }
 .stat-label {
-  font-size: clamp(0.7rem, 1vw, 0.85rem);
+  font-size: 14px;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -311,26 +312,28 @@ h2 {
 .two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: clamp(2rem, 4vw, 4rem);
+  gap: 64px;
   align-items: start;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 .two-col-main h2 {
-  font-size: clamp(1.4rem, 2.5vw, 2rem);
-  margin-bottom: 1rem;
+  font-size: 32px;
+  margin-bottom: 16px;
 }
 .two-col-main p {
-  font-size: clamp(0.85rem, 1.1vw, 1rem);
+  font-size: 16px;
   color: var(--text-secondary);
   line-height: 1.75;
 }
 .evidence-list {
   list-style: none; padding: 0;
   display: flex; flex-direction: column;
-  gap: 0.65rem;
+  gap: 10px;
 }
 .evidence-list li {
-  padding-left: 1.1rem; position: relative;
-  font-size: clamp(0.85rem, 1.1vw, 1rem);
+  padding-left: 18px; position: relative;
+  font-size: 16px;
   color: var(--text-primary); line-height: 1.5;
 }
 .evidence-list li::before {
@@ -346,6 +349,8 @@ h2 {
 .step-flow {
   display: flex;
   align-items: flex-start;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 .step {
   flex: 1;
@@ -353,36 +358,36 @@ h2 {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 0.75rem;
+  gap: 12px;
 }
 .step-circle {
-  width: clamp(2.5rem, 4vw, 3.5rem);
-  height: clamp(2.5rem, 4vw, 3.5rem);
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background: var(--text-primary);
   color: var(--bg-primary);
   font-family: 'DM Serif Display', serif;
-  font-size: clamp(1rem, 1.5vw, 1.4rem);
+  font-size: 22px;
   font-weight: 400;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
 .step-connector {
-  flex: 0 0 2rem;
+  flex: 0 0 32px;
   height: 1px;
   background: var(--border);
-  margin-top: clamp(1.25rem, 2vw, 1.75rem);
+  margin-top: 28px;
   align-self: flex-start;
 }
 .step-title {
   font-family: 'DM Serif Display', serif;
-  font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+  font-size: 17px;
 }
 .step-desc {
-  font-size: clamp(0.75rem, 0.9vw, 0.875rem);
+  font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.5;
-  max-width: 140px;
+  max-width: 180px;
 }
 
 /* ===========================================
@@ -390,17 +395,18 @@ h2 {
    =========================================== */
 .quote-block {
   border-left: 2px solid var(--border-strong);
-  padding-left: 1.5rem;
+  padding-left: 24px;
+  max-width: 1200px;
 }
 .quote-block blockquote {
   font-family: 'DM Serif Display', serif;
-  font-size: clamp(1.3rem, 2.5vw, 2rem);
+  font-size: 32px;
   font-style: italic;
   line-height: 1.4;
-  margin-bottom: 1rem;
+  margin-bottom: 16px;
 }
 .quote-block cite {
-  font-size: 0.8rem;
+  font-size: 13px;
   color: var(--text-muted);
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -423,13 +429,13 @@ h2 {
      SLIDE 1: Cover
      ============================== -->
 <section class="slide" data-index="0">
-  <div class="slide-inner">
+  <div class="slide-canvas">
     <p class="label reveal">slides-it · minimal theme</p>
     <hr class="divider reveal">
     <h1 class="reveal">Ideas deserve<br><em>clear presentation</em></h1>
     <hr class="divider reveal">
     <p class="subtitle reveal">A warm, typographic theme with subtle geometric depth. No gradients. No glow. Just words on paper.</p>
-    <p class="body-text reveal" style="margin-top:2rem; color: var(--text-muted)">2026 — slides-it</p>
+    <p class="body-text reveal" style="margin-top:32px; color: var(--text-muted)">2026 — slides-it</p>
   </div>
 </section>
 
@@ -437,7 +443,7 @@ h2 {
      SLIDE 2: Feature Cards (3-col)
      ============================== -->
 <section class="slide" data-index="1">
-  <div class="slide-inner wide">
+  <div class="slide-canvas">
     <h2 class="heading-rule reveal">Three principles</h2>
     <div class="card-grid reveal">
       <div class="card">
@@ -466,7 +472,7 @@ h2 {
      SLIDE 3: Stats Row (no counter, static fade-in)
      ============================== -->
 <section class="slide" data-index="2">
-  <div class="slide-inner wide">
+  <div class="slide-canvas">
     <p class="label reveal">By the numbers</p>
     <hr class="divider reveal">
     <div class="stats-row reveal">
@@ -483,7 +489,7 @@ h2 {
         <div class="stat-label">Idea per slide</div>
       </div>
     </div>
-    <hr class="divider reveal" style="margin-top:2rem">
+    <hr class="divider reveal" style="margin-top:32px">
     <p class="body-text reveal">The best slide is the one that makes your point impossible to miss.</p>
   </div>
 </section>
@@ -492,12 +498,12 @@ h2 {
      SLIDE 4: Two-Column
      ============================== -->
 <section class="slide" data-index="3">
-  <div class="slide-inner wide">
+  <div class="slide-canvas">
     <div class="two-col reveal">
       <div class="two-col-main">
-        <p class="label" style="margin-bottom:0.75rem">Key finding</p>
+        <p class="label" style="margin-bottom:12px">Key finding</p>
         <h2>Typography creates hierarchy without decoration</h2>
-        <p style="margin-top:1rem">The contrast between DM Serif Display headings and DM Sans body text establishes a natural visual order. No colors, borders, or effects needed.</p>
+        <p style="margin-top:16px">The contrast between DM Serif Display headings and DM Sans body text establishes a natural visual order. No colors, borders, or effects needed.</p>
       </div>
       <div>
         <div class="card">
@@ -517,9 +523,9 @@ h2 {
      SLIDE 5: Step Flow
      ============================== -->
 <section class="slide" data-index="4">
-  <div class="slide-inner wide">
+  <div class="slide-canvas">
     <p class="label reveal">Process</p>
-    <h2 class="reveal" style="margin: 0.5rem 0 2rem">From idea to presentation</h2>
+    <h2 class="reveal" style="margin: 8px 0 32px">From idea to presentation</h2>
     <div class="step-flow reveal">
       <div class="step">
         <div class="step-circle">1</div>
@@ -552,12 +558,12 @@ h2 {
      SLIDE 6: Quote Block
      ============================== -->
 <section class="slide" data-index="5">
-  <div class="slide-inner">
+  <div class="slide-canvas">
     <div class="quote-block reveal">
       <blockquote>"Perfection is achieved not when there is nothing more to add, but when there is nothing left to take away."</blockquote>
       <cite>Antoine de Saint-Exupéry</cite>
     </div>
-    <hr class="divider reveal" style="margin-top:2.5rem">
+    <hr class="divider reveal" style="margin-top:40px">
     <p class="body-text reveal">Great presentations subtract. Every removed element makes the remaining ones stronger.</p>
   </div>
 </section>
@@ -566,12 +572,12 @@ h2 {
      SLIDE 7: Closing
      ============================== -->
 <section class="slide" data-index="6">
-  <div class="slide-inner">
+  <div class="slide-canvas">
     <hr class="divider reveal">
     <h1 class="reveal"><em>Thank you</em></h1>
-    <p class="subtitle reveal" style="margin-top:1rem">Questions?</p>
-    <hr class="divider reveal" style="margin-top:2rem">
-    <p class="label reveal" style="margin-top:2rem">slides-it · minimal theme · generated with AI</p>
+    <p class="subtitle reveal" style="margin-top:16px">Questions?</p>
+    <hr class="divider reveal" style="margin-top:32px">
+    <p class="label reveal" style="margin-top:32px">slides-it · minimal theme · generated with AI</p>
   </div>
 </section>
 
@@ -590,12 +596,27 @@ class SlidePresentation {
   constructor() {
     this.slides = document.querySelectorAll('.slide');
     this.currentSlide = 0;
+    this.setupScaling();
     this.setupProgressBar();
     this.setupNavDots();
     this.setupIntersectionObserver();
     this.setupKeyboardNav();
     this.setupTouchNav();
     this.setupMouseWheel();
+  }
+
+  /* Scale 1920×1080 canvases to fit viewport */
+  setupScaling() {
+    const canvases = document.querySelectorAll('.slide-canvas');
+    const BASE_W = 1920, BASE_H = 1080;
+    const update = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const scale = Math.min(vw / BASE_W, vh / BASE_H);
+      canvases.forEach(c => { c.style.transform = `scale(${scale})`; });
+    };
+    window.addEventListener('resize', update);
+    update();
   }
 
   setupProgressBar() {

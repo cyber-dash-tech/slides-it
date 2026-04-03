@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import TitleBar from './components/TitleBar'
 import ChatPanel from './components/ChatPanel'
 import PreviewPanel from './components/PreviewPanel'
@@ -21,6 +21,40 @@ export default function App() {
   const [fileTreeRefreshToken, setFileTreeRefreshToken] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [modelRefreshToken, setModelRefreshToken] = useState(0)
+
+  // ── Resizable FileTree ──────────────────────────────────────────────────
+  const [fileTreeWidth, setFileTreeWidth] = useState(224)
+  const [isDividerHover, setIsDividerHover] = useState(false)
+  const isDragging = useRef(false)
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isDragging.current = true
+    setIsDividerHover(true)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }, [])
+
+  useEffect(() => {
+    function onMouseMove(e: MouseEvent) {
+      if (!isDragging.current) return
+      const clamped = Math.min(480, Math.max(160, e.clientX))
+      setFileTreeWidth(clamped)
+    }
+    function onMouseUp() {
+      if (!isDragging.current) return
+      isDragging.current = false
+      setIsDividerHover(false)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [])
 
   // Helper: fetch the combined system prompt for the given design + industry
   async function fetchSkill(design: string, industry: string): Promise<string> {
@@ -115,7 +149,11 @@ export default function App() {
       <div className="flex-1 flex min-h-0">
         <div
           className="flex flex-col min-h-0 shrink-0"
-          style={{ width: '224px', borderRight: '1px solid var(--border)' }}
+          style={{
+            width: fileTreeWidth,
+            position: 'relative',
+            borderRight: '1px solid var(--border)',
+          }}
         >
           <div className="flex-1 min-h-0 overflow-hidden">
             <FileTree
@@ -123,6 +161,35 @@ export default function App() {
               refreshToken={fileTreeRefreshToken}
               onFileClick={(path) => {
                 if (path.endsWith('.html')) setPreviewFile(toRelative(path))
+              }}
+            />
+          </div>
+          {/* Resize pill — floats inside the right edge of FileTree */}
+          <div
+            onMouseDown={handleMouseDown}
+            onMouseEnter={() => setIsDividerHover(true)}
+            onMouseLeave={() => setIsDividerHover(false)}
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: 12,
+              height: '100%',
+              cursor: 'col-resize',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <div
+              style={{
+                width: 4,
+                height: 48,
+                borderRadius: 9999,
+                background: isDividerHover || isDragging.current
+                  ? 'rgba(0,0,0,0.35)'
+                  : 'rgba(0,0,0,0.15)',
+                transition: 'background 0.15s',
               }}
             />
           </div>

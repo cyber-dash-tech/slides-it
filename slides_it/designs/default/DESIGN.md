@@ -35,10 +35,19 @@ Apply this visual style when generating all slides in this session.
   ```html
   <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&f[]=satoshi@400,500&display=swap">
   ```
-- Title size: `clamp(2.5rem, 6vw, 5rem)`
-- Subtitle size: `clamp(1rem, 2vw, 1.5rem)`
-- Body size: `clamp(0.85rem, 1.2vw, 1rem)`
+- Title size (h1): `80px`, weight 700
+- Section heading (h2): `38px`, weight 600
+- Subtitle size: `24px`
+- Body size: `16px`
+- Label: `11px`, letter-spacing `0.12em`, uppercase
+- Card title: `19px`, weight 600
+- Card body: `14px`
+- Stat number: `64px`, weight 700
+- Stat label: `14px`, uppercase
 - Text shadow on titles: `0 0 40px rgba(34, 211, 238, 0.3)` (subtle glow)
+
+All sizes are fixed `px` — designed for the 1920×1080 canvas. JS `transform: scale()`
+handles viewport adaptation. **Never use `clamp()` or viewport-relative units.**
 
 ### Background Layers (Order: back to front)
 
@@ -123,11 +132,12 @@ body::after {
 
 ### Slide Layout
 
-- Full-viewport slides (`height: 100dvh`, `scroll-snap-align: start`)
-- 16:9 aspect ratio enforced via `.slide-inner`:
-  - Default: `max-width: min(1060px, calc(100dvh * 16 / 9))` — for Cover, Quote, Closing
-  - Wide: `max-width: min(1200px, calc(100dvh * 16 / 9))` — for Feature Cards, Stats Row, Two-Column, Step Flow (add `.wide` class)
-- Generous padding: `clamp(1.5rem, 3vw, 3rem)`
+- **1920×1080 fixed canvas** — each slide uses a `.slide-canvas` (1920×1080px),
+  scaled to fit the viewport via JS `transform: scale()`. See SKILL.md CSS Rules.
+- Content width tiers (inside canvas, via `max-width` + `margin: 0 auto`):
+  - Default (`1200px`): Cover, Quote, Closing
+  - Wide (`1600px`): Feature Cards, Stats Row, Two-Column, Step Flow
+- Canvas padding: `60px 80px`
 - Title slide: large centered heading + glowing accent line beneath
 - Content slides: heading top-left, content below with glassmorphism cards
 
@@ -140,7 +150,7 @@ body::after {
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border);
     border-radius: 16px;
-    padding: clamp(1.25rem, 2vw, 2rem);
+    padding: 32px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
@@ -196,7 +206,7 @@ Use these layout patterns based on content type. All use glassmorphism cards wit
 `var(--accent)` with glow shadow, counter animation on slide enter.
 
 **Two-Column** — left: heading + body text, right: glassmorphism card with
-supporting evidence. Gap: `clamp(2rem, 4vw, 4rem)`.
+supporting evidence. Gap: `64px`.
 
 **Step Flow** — horizontal process with numbered circles in gradient
 (`var(--accent)` → `var(--accent-2)`), connector lines with subtle glow.
@@ -218,7 +228,7 @@ pre, code {
     border: 1px solid var(--border);
     border-radius: 8px;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: clamp(0.7rem, 1vw, 0.875rem);
+    font-size: 14px;
     color: var(--accent);
 }
 ```

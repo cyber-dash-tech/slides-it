@@ -380,6 +380,10 @@ export default function FileTree({ workspacePath, refreshToken, onFileClick }: F
   // Cmd/Ctrl+V paste to upload files
   useEffect(() => {
     function handlePaste(e: ClipboardEvent) {
+      // If focus is on a text input, let ChatPanel handle it (avoid double upload)
+      const tag = document.activeElement?.tagName
+      if (tag === 'TEXTAREA' || tag === 'INPUT') return
+
       const items = Array.from(e.clipboardData?.files ?? [])
       if (items.length > 0) {
         e.preventDefault()

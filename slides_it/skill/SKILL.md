@@ -72,55 +72,96 @@ Do not proceed to Phase 2 until the user has replied to the design question.
 
 ---
 
-### Phase 1.8 — Process Reference Materials
+### Phase 1.8 — Research-First Protocol (自主调研)
 
-If the user mentioned reference files (PDF, Excel, Word, PPT), or if their
-request implies existing materials (e.g. "turn this report into slides",
-"based on our Q3 data"), scan the workspace for available documents.
+**Always execute this phase — regardless of whether the user mentions reference
+files.** Your job is to proactively gather all available information before
+writing a single slide.
 
-**Step 1 — Discover documents in the workspace:**
+#### Three-Layer Research Strategy
+
+**Layer 1 — Workspace documents (highest priority, most reliable)**
+
+Immediately scan all available documents:
 
 ```bash
 curl -s http://localhost:3000/api/documents
 ```
 
-This returns a JSON array of all document and image files found in the workspace
-(PDF, Excel, Word, PPT, CSV, images). The response includes file name, path,
-type, and size.
-
-**Step 2 — Show what was found and confirm:**
-
-Tell the user which files are available. If there are many, group them by type.
-Ask which files they want you to use as source material.
-
-**Step 3 — Extract content from selected files:**
+For **every** document found, automatically extract its content — do NOT ask the
+user to confirm each file individually. Users put files in the workspace because
+they want you to use them.
 
 ```bash
 curl -s -X POST http://localhost:3000/api/documents/extract \
   -H "Content-Type: application/json" \
-  -d '{"path": "research-report.pdf", "max_chars": 30000}'
+  -d '{"path": "<filepath>", "max_chars": 50000}'
 ```
 
-For large files, check metadata first to decide how much to extract:
+For large files, check metadata first and extract in stages:
 
 ```bash
-curl -s "http://localhost:3000/api/documents/info?path=research-report.pdf"
+curl -s "http://localhost:3000/api/documents/info?path=<filepath>"
 ```
 
-If a file has many pages, extract in stages:
 ```bash
 curl -s -X POST http://localhost:3000/api/documents/extract \
   -H "Content-Type: application/json" \
   -d '{"path": "report.pdf", "pages": "1-10"}'
 ```
 
-**Step 4 — Use extracted content as source material for slide generation.**
+**Layer 2 — AI knowledge (second priority)**
 
-The extracted content is returned as clean markdown text with preserved headings,
-tables, and structure. Use it to inform slide content, data points, and narrative.
+Use your training data to supplement publicly available background information:
+industry trends, competitor overviews, market sizing, technology context.
 
-If the user did not mention any reference files and their request is
-self-contained, skip this phase entirely.
+**Critical:** Always mark AI-sourced information with
+`[Source: AI 公开知识，建议核实]`. Never present AI knowledge as verified fact.
+
+**Layer 2.5 — Web search (when available)**
+
+If you have access to the `search` and `fetchWebContent` MCP tools, use them
+to find current data that your training knowledge may not cover:
+
+- Industry reports, market data, recent news, regulatory updates
+- Company financials, funding rounds, patent filings
+- Technology benchmarks, competitive landscape updates
+
+Search strategy:
+1. Formulate 2–3 targeted search queries based on the presentation topic
+2. Use the `search` tool with relevant keywords (Chinese or English depending on topic)
+3. Use `fetchWebContent` to read the most relevant results in full
+4. Synthesize findings into slide content, cross-referencing with workspace documents
+
+**Critical:** Always mark web-sourced information with
+`[Source: 网络搜索，建议核实]` and include the source URL when possible.
+Do NOT blindly trust search results — cross-reference with workspace documents.
+
+If the `search` tool is not available or all searches fail, skip this layer
+silently and continue with Layer 3.
+
+**Layer 3 — Ask the user (last resort only)**
+
+Only ask the user for information that Layers 1, 2, and 2.5 cannot cover.
+When asking, first report what you already know:
+
+> 我已从 workspace 中的 N 份文档提取了信息，结合公开知识，覆盖了以下内容：
+> [brief list of covered topics]
+>
+> 以下关键信息我无法从现有资料中获取，需要您补充：
+> 1. [specific missing item]
+> 2. [specific missing item]
+
+#### Rules
+
+- **NEVER** ask the user for information that exists in workspace documents
+- **NEVER** skip workspace scanning — even if the user's message seems self-contained
+- **NEVER** ask "do you have reference files?" — just scan and find out
+- Extract content from ALL document types: PDF, Excel, Word, PPT, CSV
+- **NEVER** use the `read` tool on PDF, Excel, Word, PPT, or CSV files — their raw
+  content will flood the context window. Always use `/api/documents/extract` which
+  returns clean extracted text.
+- Images: use the `read` tool to view them (returns visual attachment)
 
 ---
 
@@ -212,37 +253,49 @@ Follow these rules on every generation. They are non-negotiable.
 
 ### CSS Rules
 
-- **16:9 aspect ratio** — every slide must maintain 16:9 proportions for projector
-  and PDF/PPT export compatibility:
+- **1920×1080 fixed canvas with `transform: scale()`** — every slide is designed
+  on a fixed 1920×1080 pixel canvas, then scaled to fit any viewport. This ensures
+  pixel-perfect 16:9 proportions on every device (desktop, tablet, phone landscape).
   ```css
+  html {
+      scroll-snap-type: y mandatory;
+      overflow-y: scroll;
+      height: 100%;
+  }
   .slide {
       height: 100dvh;
+      scroll-snap-align: start;
+      overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
-      scroll-snap-align: start;
   }
-  .slide-inner {
-      width: 100%;
-      max-width: min(1060px, calc(100dvh * 16 / 9));
-      max-height: 100dvh;
-      aspect-ratio: 16 / 9;
-      padding: clamp(1.5rem, 3vw, 3rem);
-  }
-  .slide-inner.wide {
-      max-width: min(1200px, calc(100dvh * 16 / 9));
+  .slide-canvas {
+      width: 1920px;
+      height: 1080px;
+      transform-origin: center center;
+      /* scale is set by JS — see setupScaling() */
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 80px;
   }
   ```
-  Use `.slide-inner` (1060px) for Cover, Quote, and Closing slides.
-  Use `.slide-inner.wide` (1200px) for multi-column layouts: Feature Cards,
-  Stats Row, Two-Column, and Step Flow.
+  Content width tiers inside the canvas (use `max-width` + `margin: 0 auto` on
+  a wrapper div inside `.slide-canvas`):
+  - Default (`1200px`): Cover, Quote, Closing slides
+  - Wide (`1600px`): Feature Cards, Stats Row, Two-Column, Step Flow
+- **No `clamp()` — use fixed `px` for all sizes.** Since the canvas is always
+  1920×1080 and JS handles scaling, all typography and spacing must be fixed `px`.
+  The active design specifies exact pixel values.
 - All colors and sizes via **CSS custom properties** on `:root` — never hardcode
-- All typography and spacing **must** use `clamp()`:
-  ```css
-  --title-size: clamp(2rem, 5.5vw, 4.5rem);
-  --slide-padding: clamp(1.5rem, 3vw, 3rem);
-  ```
 - Fonts from Fontshare or Google Fonts — never system fonts
+- **Icons — Lucide only.** Load via CDN:
+  `<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.js"></script>`
+  Use `<i data-lucide="icon-name">` and call `lucide.createIcons()` in JS.
+  Never use any other icon library (no Font Awesome, no Heroicons, no Material Icons).
 - Animations triggered by `.visible` class (added by JS via IntersectionObserver)
 - Stagger children: `.reveal:nth-child(n) { transition-delay: calc(n * 0.08s) }`
 - Always include `prefers-reduced-motion` rule:
@@ -254,7 +307,7 @@ Follow these rules on every generation. They are non-negotiable.
 
 ### JavaScript Rules
 
-- Vanilla JS only — no frameworks, no CDN imports
+- Vanilla JS only — no frameworks, no CDN imports (except Lucide icons)
 - All logic in the `SlidePresentation` class:
 
 ```javascript
@@ -262,6 +315,7 @@ class SlidePresentation {
     constructor() {
         this.slides = document.querySelectorAll('.slide');
         this.currentSlide = 0;
+        this.setupScaling();          // 1920×1080 → viewport fit
         this.setupIntersectionObserver();
         this.setupKeyboardNav();   // arrows, space, page up/down
         this.setupTouchNav();      // swipe support
@@ -269,7 +323,21 @@ class SlidePresentation {
         this.setupProgressBar();
         this.setupNavDots();
     }
-    // ... full implementations, not stubs
+
+    setupScaling() {
+        const canvases = document.querySelectorAll('.slide-canvas');
+        const BASE_W = 1920, BASE_H = 1080;
+        const update = () => {
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const scale = Math.min(vw / BASE_W, vh / BASE_H);
+            canvases.forEach(c => { c.style.transform = `scale(${scale})`; });
+        };
+        window.addEventListener('resize', update);
+        update();
+    }
+
+    // ... full implementations of all other methods
 }
 new SlidePresentation();
 ```
@@ -400,7 +468,8 @@ variant defined in the design:
 Rules:
 - Use the exact CSS variables from the skill text you just generated
 - Each slide is a working reference for its layout variant — AI will copy these patterns
-- Must look great at 900×600px (DesignModal preview iframe size)
+- Must use the 1920×1080 canvas with `transform: scale()` and `setupScaling()` JS
+- Must look great at 900×600px (DesignModal preview iframe size — canvas auto-scales)
 - Include working keyboard navigation, nav dots, and progress bar
 
 ---

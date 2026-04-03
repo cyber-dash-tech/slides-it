@@ -38,11 +38,20 @@ This theme pairs a warm, off-white background with frosted-glass cards and subtl
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
   ```
-- Title size: `clamp(2.2rem, 5vw, 4rem)`
-- Subtitle size: `clamp(1rem, 1.8vw, 1.35rem)`
-- Body size: `clamp(0.85rem, 1.2vw, 1rem)`
+- Title size (h1): `64px`, weight 400
+- Section heading (h2): `42px`, weight 400
+- Subtitle size: `22px`, weight 300
+- Body size: `16px`
+- Label: `11px`, letter-spacing `0.1em`, uppercase
+- Card title: `22px` (DM Serif Display)
+- Card body: `14px`
+- Stat number: `64px`, weight 400
+- Stat label: `14px`, uppercase
 - Line height: `1.75` for body, `1.15` for h1, `1.2` for h2
 - Letter spacing: `-0.02em` for large headings
+
+All sizes are fixed `px` — designed for the 1920×1080 canvas. JS `transform: scale()`
+handles viewport adaptation. **Never use `clamp()` or viewport-relative units.**
 
 ### Background Layers (Subtle Geometric Depth)
 
@@ -111,11 +120,12 @@ body::after {
 
 ### Slide Layout
 
-- Full-viewport slides (`height: 100dvh`, `scroll-snap-align: start`)
-- 16:9 aspect ratio enforced via `.slide-inner`:
-  - Default: `max-width: min(1060px, calc(100dvh * 16 / 9))` — for Cover, Quote, Closing
-  - Wide: `max-width: min(1200px, calc(100dvh * 16 / 9))` — for Feature Cards, Stats Row, Two-Column, Step Flow (add `.wide` class)
-- Comfortable padding: `clamp(1.5rem, 3vw, 3rem)`
+- **1920×1080 fixed canvas** — each slide uses a `.slide-canvas` (1920×1080px),
+  scaled to fit the viewport via JS `transform: scale()`. See SKILL.md CSS Rules.
+- Content width tiers (inside canvas, via `max-width` + `margin: 0 auto`):
+  - Default (`1200px`): Cover, Quote, Closing
+  - Wide (`1600px`): Feature Cards, Stats Row, Two-Column, Step Flow
+- Canvas padding: `60px 80px`
 - Title slide: large serif heading left-aligned + thin `1px` rule beneath + muted subtitle
 - Content slides: heading top with `border-bottom: 1px solid var(--border)` separator, content below
 
@@ -128,7 +138,7 @@ body::after {
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: clamp(1rem, 2vw, 1.5rem);
+    padding: 24px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.06);
     transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
@@ -144,7 +154,7 @@ Cards have a frosted-glass feel — semi-transparent white with backdrop blur, r
 ### Accent Elements
 
 - Left border on callouts: `border-left: 2px solid var(--border-strong)` (no color, no glow)
-- Key numbers / stats: larger font size (`clamp(2.5rem, 5vw, 4rem)`) in `var(--text-primary)`, `font-weight: 400` (DM Serif Display optical weight — no bold)
+- Key numbers / stats: `64px` in `var(--text-primary)`, `font-weight: 400` (DM Serif Display optical weight — no bold)
 - Section labels: `0.7rem`, `letter-spacing: 0.1em`, `text-transform: uppercase`, `var(--text-muted)`
 - Dividers: `1px solid var(--border)` — thin and quiet
 
@@ -199,7 +209,7 @@ pre, code {
     border: 1px solid var(--border);
     border-radius: 6px;
     font-family: 'DM Mono', 'Söhne Mono', ui-monospace, monospace;
-    font-size: clamp(0.7rem, 1vw, 0.875rem);
+    font-size: 14px;
     color: var(--text-primary);
 }
 ```

@@ -120,7 +120,7 @@ body {
 
 .nav-dots {
   position: fixed;
-  right: clamp(1rem, 2vw, 1.5rem);
+  right: 20px;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
@@ -143,7 +143,7 @@ body {
 }
 
 /* ===========================================
-   SLIDE BASE — 16:9 aspect ratio enforced
+   SLIDE BASE — 1920×1080 fixed canvas, scaled by JS
    =========================================== */
 .slide {
   height: 100vh; height: 100dvh;
@@ -154,19 +154,16 @@ body {
   justify-content: center;
   background: transparent;
 }
-.slide-inner {
-  width: 100%;
-  max-width: min(1060px, calc(100dvh * 16 / 9));
-  max-height: 100dvh;
-  aspect-ratio: 16 / 9;
-  margin: 0 auto;
+.slide-canvas {
+  width: 1920px;
+  height: 1080px;
+  transform-origin: center center;
+  overflow: hidden;
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: clamp(1.5rem, 3vw, 3rem);
-}
-.slide-inner.wide {
-  max-width: min(1200px, calc(100dvh * 16 / 9));
+  padding: 60px 80px;
 }
 
 /* ===========================================
@@ -213,11 +210,11 @@ body {
 }
 
 /* ===========================================
-   TYPOGRAPHY
+   TYPOGRAPHY — fixed px for 1920×1080 canvas
    =========================================== */
 h1 {
   font-family: 'Clash Display', ui-sans-serif, sans-serif;
-  font-size: clamp(2.5rem, 6vw, 5rem);
+  font-size: 80px;
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.02em;
@@ -225,17 +222,17 @@ h1 {
 }
 h2 {
   font-family: 'Clash Display', ui-sans-serif, sans-serif;
-  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-size: 38px;
   font-weight: 600;
   line-height: 1.2;
 }
 .subtitle {
-  font-size: clamp(1rem, 2vw, 1.5rem);
+  font-size: 24px;
   color: var(--text-secondary);
   line-height: 1.6;
 }
 .label {
-  font-size: 0.7rem;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent);
@@ -251,7 +248,7 @@ h2 {
   width: 48px; height: 3px;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
   border-radius: 2px;
-  margin: 1.25rem 0;
+  margin: 20px 0;
 }
 
 /* ===========================================
@@ -260,7 +257,9 @@ h2 {
 .card-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+  gap: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 .card {
   background: var(--bg-card);
@@ -268,7 +267,7 @@ h2 {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: clamp(1.25rem, 2vw, 2rem);
+  padding: 32px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
@@ -278,24 +277,24 @@ h2 {
   border-color: var(--glow);
 }
 .card-icon {
-  width: 2rem; height: 2rem;
+  width: 32px; height: 32px;
   color: var(--accent);
-  margin-bottom: 0.75rem;
+  margin-bottom: 12px;
   transition: transform 0.2s ease;
 }
 .card:hover .card-icon { transform: scale(1.15); }
 .card-label {
-  font-size: 0.65rem; letter-spacing: 0.1em;
+  font-size: 10px; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--accent);
-  margin-bottom: 0.5rem; font-weight: 500;
+  margin-bottom: 8px; font-weight: 500;
 }
 .card-title {
   font-family: 'Clash Display', sans-serif;
-  font-size: clamp(0.95rem, 1.6vw, 1.2rem);
-  margin-bottom: 0.5rem; font-weight: 600;
+  font-size: 19px;
+  margin-bottom: 8px; font-weight: 600;
 }
 .card-body {
-  font-size: 0.85rem;
+  font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.6;
 }
@@ -306,7 +305,9 @@ h2 {
 .stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: clamp(1rem, 2vw, 2rem);
+  gap: 32px;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 .stat-card {
   background: var(--bg-card);
@@ -314,20 +315,20 @@ h2 {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: clamp(1.5rem, 2.5vw, 2.5rem);
+  padding: 40px;
   text-align: center;
   box-shadow: 0 8px 32px rgba(0,0,0,0.3);
 }
 .stat-number {
   font-family: 'Clash Display', sans-serif;
-  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-size: 64px;
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.03em;
-  margin-bottom: 0.5rem;
+  margin-bottom: 8px;
 }
 .stat-label {
-  font-size: clamp(0.7rem, 1vw, 0.85rem);
+  font-size: 14px;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -340,26 +341,28 @@ h2 {
 .two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: clamp(2rem, 4vw, 4rem);
+  gap: 64px;
   align-items: start;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 .two-col-main h2 {
-  font-size: clamp(1.4rem, 2.5vw, 2rem);
-  margin-bottom: 1rem;
+  font-size: 32px;
+  margin-bottom: 16px;
 }
 .two-col-main p {
-  font-size: clamp(0.85rem, 1.1vw, 1rem);
+  font-size: 16px;
   color: var(--text-secondary);
   line-height: 1.7;
 }
 .evidence-list {
   list-style: none; padding: 0;
   display: flex; flex-direction: column;
-  gap: 0.65rem;
+  gap: 10px;
 }
 .evidence-list li {
-  padding-left: 1.1rem; position: relative;
-  font-size: clamp(0.85rem, 1.1vw, 1rem);
+  padding-left: 18px; position: relative;
+  font-size: 16px;
   color: var(--text-primary); line-height: 1.5;
 }
 .evidence-list li::before {
@@ -376,6 +379,8 @@ h2 {
 .step-flow {
   display: flex;
   align-items: flex-start;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 .step {
   flex: 1;
@@ -383,38 +388,38 @@ h2 {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 0.75rem;
+  gap: 12px;
 }
 .step-circle {
-  width: clamp(2.5rem, 4vw, 3.5rem);
-  height: clamp(2.5rem, 4vw, 3.5rem);
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: #fff;
   font-family: 'Clash Display', sans-serif;
-  font-size: clamp(1rem, 1.5vw, 1.4rem);
+  font-size: 22px;
   font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 8px 20px -8px rgba(34, 211, 238, 0.5);
   flex-shrink: 0;
 }
 .step-connector {
-  flex: 0 0 2rem;
+  flex: 0 0 32px;
   height: 2px;
   background: var(--border);
-  margin-top: clamp(1.25rem, 2vw, 1.75rem);
+  margin-top: 28px;
   align-self: flex-start;
   box-shadow: 0 0 6px rgba(34, 211, 238, 0.1);
 }
 .step-title {
-  font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+  font-size: 17px;
   font-weight: 600;
 }
 .step-desc {
-  font-size: clamp(0.75rem, 0.9vw, 0.875rem);
+  font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.5;
-  max-width: 140px;
+  max-width: 180px;
 }
 
 /* ===========================================
@@ -422,19 +427,20 @@ h2 {
    =========================================== */
 .quote-block {
   border-left: 3px solid var(--accent);
-  padding: 1rem 1.25rem;
+  padding: 16px 20px;
   background: rgba(34, 211, 238, 0.06);
   border-radius: 0 8px 8px 0;
+  max-width: 1200px;
 }
 .quote-block blockquote {
-  font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+  font-size: 28px;
   font-style: italic;
   line-height: 1.5;
-  margin-bottom: 0.75rem;
+  margin-bottom: 12px;
   text-shadow: 0 0 30px rgba(34, 211, 238, 0.15);
 }
 .quote-block cite {
-  font-size: 0.75rem;
+  font-size: 12px;
   color: var(--accent);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -457,13 +463,13 @@ h2 {
      SLIDE 1: Cover
      ============================== -->
 <section class="slide" data-index="0">
-  <div class="slide-inner">
+  <div class="slide-canvas">
     <p class="label reveal">slides-it · aurora theme</p>
     <div class="accent-line reveal"></div>
     <h1 class="title-reveal">Build slides that<br><span class="gradient-text">actually impress</span></h1>
     <div class="accent-line reveal" style="background: linear-gradient(90deg, var(--accent-2), transparent)"></div>
     <p class="subtitle reveal">A stunning dark theme with animated aurora backgrounds — engineered for technical presentations, product demos, and conference talks.</p>
-    <p class="reveal" style="margin-top:2rem; font-size:0.8rem; color: var(--text-secondary)">2026 — slides-it</p>
+    <p class="reveal" style="margin-top:32px; font-size:13px; color: var(--text-secondary)">2026 — slides-it</p>
   </div>
 </section>
 
@@ -471,9 +477,9 @@ h2 {
      SLIDE 2: Feature Cards (3-col)
      ============================== -->
 <section class="slide" data-index="1">
-  <div class="slide-inner wide">
+  <div class="slide-canvas">
     <p class="label reveal">Core principles</p>
-    <h2 class="reveal" style="margin: 0.5rem 0 1.5rem">Three pillars of great slides</h2>
+    <h2 class="reveal" style="margin: 8px 0 24px">Three pillars of great slides</h2>
     <div class="card-grid reveal">
       <div class="card">
         <i data-lucide="sparkles" class="card-icon"></i>
@@ -501,7 +507,7 @@ h2 {
      SLIDE 3: Stats Row (counter animation)
      ============================== -->
 <section class="slide" data-index="2">
-  <div class="slide-inner wide">
+  <div class="slide-canvas">
     <p class="label reveal">By the numbers</p>
     <div class="accent-line reveal"></div>
     <div class="stats-row reveal">
@@ -518,7 +524,7 @@ h2 {
         <div class="stat-label">Built-in variants</div>
       </div>
     </div>
-    <p class="reveal" style="margin-top:1.5rem; font-size:clamp(0.85rem,1.1vw,1rem); color:var(--text-secondary)">One HTML file. No build tools, no CDN, no runtime. Open it anywhere.</p>
+    <p class="reveal" style="margin-top:24px; font-size:16px; color:var(--text-secondary)">One HTML file. No build tools, no CDN, no runtime. Open it anywhere.</p>
   </div>
 </section>
 
@@ -526,12 +532,12 @@ h2 {
      SLIDE 4: Two-Column
      ============================== -->
 <section class="slide" data-index="3">
-  <div class="slide-inner wide">
+  <div class="slide-canvas">
     <div class="two-col reveal">
       <div class="two-col-main">
-        <p class="label" style="margin-bottom:0.75rem">Key finding</p>
+        <p class="label" style="margin-bottom:12px">Key finding</p>
         <h2>Glassmorphism elevates content hierarchy</h2>
-        <p style="margin-top:1rem">Translucent card surfaces with backdrop blur create natural depth layers, guiding the eye to the most important information without heavy borders or shadows.</p>
+        <p style="margin-top:16px">Translucent card surfaces with backdrop blur create natural depth layers, guiding the eye to the most important information without heavy borders or shadows.</p>
       </div>
       <div>
         <div class="card">
@@ -551,9 +557,9 @@ h2 {
      SLIDE 5: Step Flow
      ============================== -->
 <section class="slide" data-index="4">
-  <div class="slide-inner wide">
+  <div class="slide-canvas">
     <p class="label reveal">Process</p>
-    <h2 class="reveal" style="margin: 0.5rem 0 2rem">From idea to presentation</h2>
+    <h2 class="reveal" style="margin: 8px 0 32px">From idea to presentation</h2>
     <div class="step-flow reveal">
       <div class="step">
         <div class="step-circle">1</div>
@@ -586,13 +592,13 @@ h2 {
      SLIDE 6: Quote Block
      ============================== -->
 <section class="slide" data-index="5">
-  <div class="slide-inner">
+  <div class="slide-canvas">
     <div class="quote-block reveal">
       <blockquote>"The presentation is the argument. Make it undeniable."</blockquote>
       <cite>slides-it aurora theme</cite>
     </div>
-    <div class="accent-line reveal" style="margin-top:2rem"></div>
-    <p class="reveal" style="font-size:clamp(0.85rem,1.1vw,1rem); color:var(--text-secondary); line-height:1.7">Great design removes friction between your ideas and your audience's understanding.</p>
+    <div class="accent-line reveal" style="margin-top:32px"></div>
+    <p class="reveal" style="font-size:16px; color:var(--text-secondary); line-height:1.7">Great design removes friction between your ideas and your audience's understanding.</p>
   </div>
 </section>
 
@@ -600,12 +606,12 @@ h2 {
      SLIDE 7: Closing
      ============================== -->
 <section class="slide" data-index="6">
-  <div class="slide-inner" style="text-align:center">
-    <div class="accent-line reveal" style="margin:0 auto 1.5rem"></div>
-    <h1 class="title-reveal" style="font-size:clamp(2rem,5vw,3.5rem)">Thank <span class="gradient-text">You</span></h1>
-    <p class="subtitle reveal" style="margin-top:1rem">Questions?</p>
-    <div class="accent-line reveal" style="margin:2rem auto 0; background:linear-gradient(90deg,var(--accent-2),transparent)"></div>
-    <p class="label reveal" style="margin-top:2rem">generated with slides-it + claude</p>
+  <div class="slide-canvas" style="text-align:center; align-items:center">
+    <div class="accent-line reveal" style="margin:0 auto 24px"></div>
+    <h1 class="title-reveal" style="font-size:56px">Thank <span class="gradient-text">You</span></h1>
+    <p class="subtitle reveal" style="margin-top:16px">Questions?</p>
+    <div class="accent-line reveal" style="margin:32px auto 0; background:linear-gradient(90deg,var(--accent-2),transparent)"></div>
+    <p class="label reveal" style="margin-top:32px">generated with slides-it + claude</p>
   </div>
 </section>
 
@@ -648,12 +654,27 @@ class SlidePresentation {
   constructor() {
     this.slides = document.querySelectorAll('.slide');
     this.currentSlide = 0;
+    this.setupScaling();
     this.setupProgressBar();
     this.setupNavDots();
     this.setupIntersectionObserver();
     this.setupKeyboardNav();
     this.setupTouchNav();
     this.setupMouseWheel();
+  }
+
+  /* Scale 1920×1080 canvases to fit viewport */
+  setupScaling() {
+    const canvases = document.querySelectorAll('.slide-canvas');
+    const BASE_W = 1920, BASE_H = 1080;
+    const update = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const scale = Math.min(vw / BASE_W, vh / BASE_H);
+      canvases.forEach(c => { c.style.transform = `scale(${scale})`; });
+    };
+    window.addEventListener('resize', update);
+    update();
   }
 
   setupProgressBar() {

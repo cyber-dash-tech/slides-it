@@ -103,7 +103,7 @@ export default function AtPopover({ query, workspacePath, onSelect, onClose }: A
   if (loading) {
     return (
       <div
-        className="absolute bottom-full mb-1 left-0 w-72 rounded-xl px-3 py-2.5 text-[11px] z-50 flex items-center gap-2"
+        className="absolute bottom-full mb-1 left-0 w-max min-w-72 max-w-[560px] rounded-xl px-3 py-2.5 text-[11px] z-50 flex items-center gap-2"
         style={{
           background: 'var(--bg-surface)',
           border: '1px solid var(--border)',
@@ -124,7 +124,7 @@ export default function AtPopover({ query, workspacePath, onSelect, onClose }: A
   if (!loading && results.length === 0) {
     return (
       <div
-        className="absolute bottom-full mb-1 left-0 w-72 rounded-xl px-3 py-2 text-[11px] z-50"
+        className="absolute bottom-full mb-1 left-0 w-max min-w-72 max-w-[560px] rounded-xl px-3 py-2 text-[11px] z-50"
         style={{
           background: 'var(--bg-surface)',
           border: '1px solid var(--border)',
@@ -139,7 +139,7 @@ export default function AtPopover({ query, workspacePath, onSelect, onClose }: A
 
   return (
     <div
-      className="absolute bottom-full mb-1 left-0 w-72 rounded-xl overflow-hidden z-50"
+      className="absolute bottom-full mb-1 left-0 w-max min-w-72 max-w-[560px] rounded-xl overflow-hidden z-50"
       style={{
         background: 'var(--bg-surface)',
         border: '1px solid var(--border)',
@@ -176,10 +176,10 @@ export default function AtPopover({ query, workspacePath, onSelect, onClose }: A
                 clipRule="evenodd" />
             </svg>
             <div className="flex-1 min-w-0">
-              <p className="text-xs truncate" style={{ color: 'var(--text-primary)' }}>
+              <p className="text-xs truncate" style={{ color: 'var(--text-primary)' }} title={file.name}>
                 {file.name}
               </p>
-              <p className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-[10px] whitespace-nowrap" style={{ color: 'var(--text-muted)' }} title={file.path}>
                 {file.path}
               </p>
             </div>

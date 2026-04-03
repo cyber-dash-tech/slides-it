@@ -45,6 +45,17 @@ _LS_IGNORE: set[str] = {
     ".slides-it",   # internal slides-it state — not useful to the user
 }
 
+# MCP config block for open-webSearch — always injected into opencode.json
+_MCP_WEB_SEARCH_BLOCK: dict = {
+    "type": "local",
+    "command": ["npx", "open-websearch@latest"],
+    "environment": {
+        "MODE": "stdio",
+        "DEFAULT_SEARCH_ENGINE": "bing",
+        "ALLOWED_SEARCH_ENGINES": "bing,baidu,brave,duckduckgo,startpage",
+    },
+}
+
 # ---------------------------------------------------------------------------
 # State
 # ---------------------------------------------------------------------------
@@ -428,6 +439,9 @@ def start_workspace(req: StartRequest) -> dict[str, str]:
 
     # Write .ignore so ripgrep skips binary/media files even without a git repo
     _ensure_ignore_file(directory)
+
+    # Ensure MCP web-search config is present in opencode.json
+    _ensure_mcp_config(str(directory))
 
     # If opencode is already healthy, just update workspace and reuse it
     if _is_opencode_healthy():
@@ -2149,6 +2163,9 @@ def _write_opencode_jsonc(
 
     cfg.setdefault("$schema", "https://opencode.ai/config.json")
 
+    # ── MCP: always enable open-webSearch for AI web search capability ──
+    cfg["mcp"] = {"web-search": _MCP_WEB_SEARCH_BLOCK}
+
     provider_section: dict = cfg.get("provider", {})
 
     # Remove stale provider blocks from previous provider (clean slate on switch)
@@ -2187,6 +2204,37 @@ def _write_opencode_jsonc(
             del cfg["provider"]
 
     cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+
+def _ensure_mcp_config(workspace: str) -> None:
+    """
+    Ensure the workspace opencode.json contains the MCP web-search config.
+
+    Called on every workspace start so that web search is available even if
+    the user has never opened Settings.  Reads the existing file, injects the
+    mcp block only when missing, and writes back.
+    """
+    import re
+
+    cfg_path = pathlib.Path(workspace) / "opencode.json"
+    cfg: dict = {}
+    if cfg_path.exists():
+        try:
+            text = cfg_path.read_text(encoding="utf-8")
+            try:
+                cfg = json.loads(text)
+            except json.JSONDecodeError:
+                stripped = re.sub(r"(?m)^\s*//.*$", "", text)
+                cfg = json.loads(stripped)
+        except Exception:
+            cfg = {}
+
+    # Only write if mcp.web-search is absent (don't overwrite user tweaks)
+    mcp = cfg.get("mcp", {})
+    if "web-search" not in mcp:
+        mcp["web-search"] = _MCP_WEB_SEARCH_BLOCK
+        cfg["mcp"] = mcp
+        cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
 
 def _stop_opencode() -> None:
