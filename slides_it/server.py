@@ -2176,7 +2176,7 @@ def _write_opencode_jsonc(
             del provider_section[k]
 
     if api_key and provider_id:
-        options: dict = {"apiKey": api_key}
+        options: dict = {"apiKey": api_key, "setCacheKey": True}
         if base_url:
             options["baseURL"] = base_url
 
@@ -2209,11 +2209,12 @@ def _write_opencode_jsonc(
 
 def _ensure_mcp_config(workspace: str) -> None:
     """
-    Ensure the workspace opencode.json contains the MCP web-search config.
+    Ensure the workspace opencode.json contains the MCP web-search config
+    and that all provider options include setCacheKey: true.
 
-    Called on every workspace start so that web search is available even if
-    the user has never opened Settings.  Reads the existing file, injects the
-    mcp block only when missing, and writes back.
+    Called on every workspace start so that web search and prompt caching are
+    available even if the user has never opened Settings.  Reads the existing
+    file, injects missing config, and writes back only when something changed.
     """
     import re
 
@@ -2230,11 +2231,29 @@ def _ensure_mcp_config(workspace: str) -> None:
         except Exception:
             cfg = {}
 
-    # Only write if mcp.web-search is absent (don't overwrite user tweaks)
+    changed = False
+
+    # ── MCP: ensure web-search is present ──
     mcp = cfg.get("mcp", {})
     if "web-search" not in mcp:
         mcp["web-search"] = _MCP_WEB_SEARCH_BLOCK
         cfg["mcp"] = mcp
+        changed = True
+
+    # ── Provider: ensure setCacheKey is present in all provider options ──
+    providers = cfg.get("provider", {})
+    for _pid, pblock in providers.items():
+        if not isinstance(pblock, dict):
+            continue
+        opts = pblock.get("options", {})
+        if not isinstance(opts, dict):
+            continue
+        if opts.get("setCacheKey") is not True:
+            opts["setCacheKey"] = True
+            pblock["options"] = opts
+            changed = True
+
+    if changed:
         cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
 

@@ -38,12 +38,12 @@ Apply this visual style when generating all slides in this session.
 - Title size (h1): `80px`, weight 700
 - Section heading (h2): `38px`, weight 600
 - Subtitle size: `24px`
-- Body size: `16px`
-- Label: `11px`, letter-spacing `0.12em`, uppercase
-- Card title: `19px`, weight 600
-- Card body: `14px`
+- Body size: `18px`
+- Label: `13px`, letter-spacing `0.12em`, uppercase
+- Card title: `22px`, weight 600
+- Card body: `17px`
 - Stat number: `64px`, weight 700
-- Stat label: `14px`, uppercase
+- Stat label: `15px`, uppercase
 - Text shadow on titles: `0 0 40px rgba(34, 211, 238, 0.3)` (subtle glow)
 
 All sizes are fixed `px` — designed for the 1920×1080 canvas. JS `transform: scale()`
@@ -138,6 +138,19 @@ body::after {
   - Default (`1200px`): Cover, Quote, Closing
   - Wide (`1600px`): Feature Cards, Stats Row, Two-Column, Step Flow
 - Canvas padding: `60px 80px`
+- **Canvas utilization** — Elements should fill approximately 70–80% of the
+  1920×1080 canvas area. Avoid large empty zones. Use taller cards (`min-height`),
+  larger stat numbers, wider grids, and generous card padding to occupy available
+  space. Content should feel comfortably placed, not floating in emptiness — but
+  preserve enough breathing room to maintain elegance.
+  - **Content slides** (Feature Cards, Stats, Two-Column, Step Flow): grid/flex
+    containers should stretch toward the canvas edges. Cards should have ample
+    internal padding and body text so they feel substantial.
+  - **Sparse slides** (Cover, Quote, Closing): add decorative fills — aurora-colored
+    gradient circles (`position: absolute`, low opacity), extra accent lines,
+    corner geometric shapes, or large background `"` marks for quotes. These
+    anchor the composition without overcrowding the message.
+  - **Never** leave more than ~20% of the canvas visually empty on any slide.
 - Title slide: large centered heading + glowing accent line beneath
 - Content slides: heading top-left, content below with glassmorphism cards
 
@@ -219,6 +232,32 @@ subtle text glow, on a dark transparent card.
 
 **Full-bleed Dark Callout** — single powerful statement, `--bg-primary` background
 with aurora ribbons more visible, large gradient text. Use max once per deck.
+
+### Data Visualization (ECharts)
+
+When a slide includes charts or data visualization, use [ECharts](https://echarts.apache.org/)
+loaded via CDN:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+```
+
+**Donut / Pie chart styling:**
+- Color palette: `['#22d3ee', '#a78bfa', '#34d399']` (aurora accent triad)
+- Background: `'transparent'`
+- Label color: `var(--text-secondary)` (`#94a3b8`)
+- Center label: large number/text in `var(--text-primary)`, Clash Display font
+- No outer border; subtle inner radius (~55-65%) for donut style
+- Animation: enabled (consistent with aurora theme's motion philosophy)
+- Legend: bottom-aligned, `var(--text-secondary)` color, `14px` Satoshi font
+- Container size on 1920×1080 canvas: `280–360px` square is typical
+
+**Integration rules:**
+- Initialize charts inside a `window.addEventListener('load', ...)` or after DOM ready
+- Use `echarts.init(container, null, { renderer: 'canvas' })` — canvas renderer for performance
+- Charts must use the aurora color palette — never default ECharts colors
+- Responsive: charts are inside the 1920×1080 canvas, scaled by JS `transform: scale()` —
+  no need for ECharts `resize()` handling
 
 ### Code Blocks (if any)
 

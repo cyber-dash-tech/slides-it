@@ -41,12 +41,12 @@ This theme pairs a warm, off-white background with frosted-glass cards and subtl
 - Title size (h1): `64px`, weight 400
 - Section heading (h2): `42px`, weight 400
 - Subtitle size: `22px`, weight 300
-- Body size: `16px`
-- Label: `11px`, letter-spacing `0.1em`, uppercase
-- Card title: `22px` (DM Serif Display)
-- Card body: `14px`
+- Body size: `18px`
+- Label: `13px`, letter-spacing `0.1em`, uppercase
+- Card title: `24px` (DM Serif Display)
+- Card body: `17px`
 - Stat number: `64px`, weight 400
-- Stat label: `14px`, uppercase
+- Stat label: `15px`, uppercase
 - Line height: `1.75` for body, `1.15` for h1, `1.2` for h2
 - Letter spacing: `-0.02em` for large headings
 
@@ -126,6 +126,20 @@ body::after {
   - Default (`1200px`): Cover, Quote, Closing
   - Wide (`1600px`): Feature Cards, Stats Row, Two-Column, Step Flow
 - Canvas padding: `60px 80px`
+- **Canvas utilization** — Elements should fill approximately 70–80% of the
+  1920×1080 canvas area. Even in a minimal design, slides should not feel empty.
+  Use larger serif headings, more generous card heights, wider grids, and
+  comfortable padding to occupy the space. The calm feeling comes from typography
+  and whitespace *rhythm*, not from leaving the canvas half-empty.
+  - **Content slides** (Feature Cards, Stats, Two-Column, Step Flow): grid/flex
+    containers should stretch toward the canvas edges. Frosted-glass cards should
+    have ample internal padding and body text so they feel substantial.
+  - **Sparse slides** (Cover, Quote, Closing): add decorative fills — thin geometric
+    rules, positioned warm-amber circles (low opacity), large typographic ornaments
+    (e.g. oversized `"` for quotes in `var(--border)` color), or horizontal `1px`
+    dividers that span most of the canvas width. These anchor the composition
+    without breaking the calm, paper-like feel.
+  - **Never** leave more than ~20% of the canvas visually empty on any slide.
 - Title slide: large serif heading left-aligned + thin `1px` rule beneath + muted subtitle
 - Content slides: heading top with `border-bottom: 1px solid var(--border)` separator, content below
 
@@ -200,6 +214,32 @@ thin border. Clean typographic contrast does the visual work.
 
 **Quote Block** — large DM Serif Display italic text, `border-left: 2px solid
 var(--border-strong)`, no color accent. Let the serif typography be the visual element.
+
+### Data Visualization (ECharts)
+
+When a slide includes charts or data visualization, use [ECharts](https://echarts.apache.org/)
+loaded via CDN:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+```
+
+**Donut / Pie chart styling:**
+- Color palette: `['#1A1916', '#6B6560', '#C9C4B8']` (monochrome warm — ink, mid-grey, border)
+- Background: `'transparent'`
+- Label color: `var(--text-muted)` (`#A09890`)
+- Center label: large text in `var(--text-primary)`, DM Serif Display font
+- No outer border; subtle inner radius (~55-65%) for donut style
+- Animation: `false` or very subtle fade-in only (consistent with minimal's stillness)
+- Legend: bottom-aligned, `var(--text-muted)` color, `14px` DM Sans font
+- Container size on 1920×1080 canvas: `280–360px` square is typical
+
+**Integration rules:**
+- Initialize charts inside a `window.addEventListener('load', ...)` or after DOM ready
+- Use `echarts.init(container, null, { renderer: 'canvas' })` — canvas renderer for performance
+- Charts must use the monochrome warm palette — never default ECharts colors or colored accents
+- Responsive: charts are inside the 1920×1080 canvas, scaled by JS `transform: scale()` —
+  no need for ECharts `resize()` handling
 
 ### Code Blocks (if any)
 

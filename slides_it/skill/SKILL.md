@@ -273,6 +273,7 @@ Follow these rules on every generation. They are non-negotiable.
   .slide-canvas {
       width: 1920px;
       height: 1080px;
+      flex-shrink: 0;
       transform-origin: center center;
       /* scale is set by JS — see setupScaling() */
       overflow: hidden;

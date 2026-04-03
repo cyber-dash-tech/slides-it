@@ -6,6 +6,7 @@
 <title>Aurora Theme — Preview</title>
 <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&f[]=satoshi@400,500&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 <style>
 /* ===========================================
    CSS CUSTOM PROPERTIES — Aurora Theme
@@ -143,7 +144,7 @@ body {
 }
 
 /* ===========================================
-   SLIDE BASE — 1920×1080 fixed canvas, scaled by JS
+   SLIDE BASE — 1920x1080 fixed canvas, scaled by JS
    =========================================== */
 .slide {
   height: 100vh; height: 100dvh;
@@ -157,6 +158,7 @@ body {
 .slide-canvas {
   width: 1920px;
   height: 1080px;
+  flex-shrink: 0;
   transform-origin: center center;
   overflow: hidden;
   position: relative;
@@ -164,6 +166,27 @@ body {
   flex-direction: column;
   justify-content: center;
   padding: 60px 80px;
+}
+
+/* ===========================================
+   DECORATIVE FILLS — aurora blobs & shapes inside canvas
+   =========================================== */
+.deco-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+  z-index: 0;
+}
+.deco-line {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+/* Ensure content stacks above decorative fills */
+.slide-canvas > *:not(.deco-blob):not(.deco-line) {
+  position: relative;
+  z-index: 1;
 }
 
 /* ===========================================
@@ -185,6 +208,8 @@ body {
 .reveal:nth-child(4) { transition-delay: 0.2s; }
 .reveal:nth-child(5) { transition-delay: 0.3s; }
 .reveal:nth-child(6) { transition-delay: 0.4s; }
+.reveal:nth-child(7) { transition-delay: 0.5s; }
+.reveal:nth-child(8) { transition-delay: 0.6s; }
 
 /* Cover title special animation */
 .title-reveal {
@@ -210,7 +235,7 @@ body {
 }
 
 /* ===========================================
-   TYPOGRAPHY — fixed px for 1920×1080 canvas
+   TYPOGRAPHY — fixed px for 1920x1080 canvas
    =========================================== */
 h1 {
   font-family: 'Clash Display', ui-sans-serif, sans-serif;
@@ -232,7 +257,7 @@ h2 {
   line-height: 1.6;
 }
 .label {
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent);
@@ -250,6 +275,11 @@ h2 {
   border-radius: 2px;
   margin: 20px 0;
 }
+.accent-line-wide {
+  width: 200px; height: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  border-radius: 2px;
+}
 
 /* ===========================================
    LAYOUT VARIANT: Feature Cards (3-col grid)
@@ -260,6 +290,8 @@ h2 {
   gap: 24px;
   max-width: 1600px;
   margin: 0 auto;
+  flex: 1;
+  align-content: stretch;
 }
 .card {
   background: var(--bg-card);
@@ -267,9 +299,11 @@ h2 {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 32px;
+  padding: 36px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
 .card:hover {
   transform: translateY(-4px);
@@ -279,24 +313,25 @@ h2 {
 .card-icon {
   width: 32px; height: 32px;
   color: var(--accent);
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   transition: transform 0.2s ease;
 }
 .card:hover .card-icon { transform: scale(1.15); }
 .card-label {
-  font-size: 10px; letter-spacing: 0.1em;
+  font-size: 12px; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--accent);
-  margin-bottom: 8px; font-weight: 500;
+  margin-bottom: 10px; font-weight: 500;
 }
 .card-title {
   font-family: 'Clash Display', sans-serif;
-  font-size: 19px;
-  margin-bottom: 8px; font-weight: 600;
+  font-size: 22px;
+  margin-bottom: 12px; font-weight: 600;
 }
 .card-body {
-  font-size: 14px;
+  font-size: 17px;
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.7;
+  flex: 1;
 }
 
 /* ===========================================
@@ -315,7 +350,7 @@ h2 {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 40px;
+  padding: 48px 40px;
   text-align: center;
   box-shadow: 0 8px 32px rgba(0,0,0,0.3);
 }
@@ -325,14 +360,21 @@ h2 {
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.03em;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 .stat-label {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-weight: 500;
+  margin-bottom: 12px;
+}
+.stat-desc {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  opacity: 0.7;
 }
 
 /* ===========================================
@@ -342,27 +384,40 @@ h2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 64px;
-  align-items: start;
+  align-items: stretch;
   max-width: 1600px;
   margin: 0 auto;
+  flex: 1;
+}
+.two-col-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .two-col-main h2 {
-  font-size: 32px;
+  font-size: 36px;
   margin-bottom: 16px;
 }
 .two-col-main p {
-  font-size: 16px;
+  font-size: 18px;
   color: var(--text-secondary);
   line-height: 1.7;
+}
+.two-col > div:last-child {
+  display: flex;
+  flex-direction: column;
+}
+.two-col > div:last-child .card {
+  flex: 1;
 }
 .evidence-list {
   list-style: none; padding: 0;
   display: flex; flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 .evidence-list li {
   padding-left: 18px; position: relative;
-  font-size: 16px;
+  font-size: 18px;
   color: var(--text-primary); line-height: 1.5;
 }
 .evidence-list li::before {
@@ -388,16 +443,16 @@ h2 {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 12px;
+  gap: 16px;
 }
 .step-circle {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: #fff;
   font-family: 'Clash Display', sans-serif;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 8px 20px -8px rgba(34, 211, 238, 0.5);
@@ -407,19 +462,19 @@ h2 {
   flex: 0 0 32px;
   height: 2px;
   background: var(--border);
-  margin-top: 28px;
+  margin-top: 32px;
   align-self: flex-start;
   box-shadow: 0 0 6px rgba(34, 211, 238, 0.1);
 }
 .step-title {
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 600;
 }
 .step-desc {
-  font-size: 13px;
+  font-size: 16px;
   color: var(--text-secondary);
-  line-height: 1.5;
-  max-width: 180px;
+  line-height: 1.6;
+  max-width: 200px;
 }
 
 /* ===========================================
@@ -427,24 +482,35 @@ h2 {
    =========================================== */
 .quote-block {
   border-left: 3px solid var(--accent);
-  padding: 16px 20px;
+  padding: 24px 32px;
   background: rgba(34, 211, 238, 0.06);
   border-radius: 0 8px 8px 0;
   max-width: 1200px;
 }
 .quote-block blockquote {
-  font-size: 28px;
+  font-size: 36px;
   font-style: italic;
   line-height: 1.5;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   text-shadow: 0 0 30px rgba(34, 211, 238, 0.15);
 }
 .quote-block cite {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--accent);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-style: normal;
+}
+/* Large decorative quotation mark */
+.quote-deco {
+  position: absolute;
+  font-family: 'Clash Display', sans-serif;
+  font-size: 300px;
+  line-height: 1;
+  color: var(--accent);
+  opacity: 0.06;
+  pointer-events: none;
+  z-index: 0;
 }
 </style>
 </head>
@@ -464,12 +530,21 @@ h2 {
      ============================== -->
 <section class="slide" data-index="0">
   <div class="slide-canvas">
-    <p class="label reveal">slides-it · aurora theme</p>
+    <!-- Decorative fills: aurora blobs anchoring the composition -->
+    <div class="deco-blob" style="width:400px;height:400px;background:rgba(34,211,238,0.08);top:-60px;right:-40px;"></div>
+    <div class="deco-blob" style="width:300px;height:300px;background:rgba(167,139,250,0.06);bottom:40px;left:-20px;"></div>
+    <div class="deco-line" style="bottom:100px;right:80px;width:200px;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0.3;"></div>
+    <div class="deco-line" style="top:120px;left:80px;width:120px;height:1px;background:linear-gradient(90deg,var(--accent-2),transparent);opacity:0.25;"></div>
+
+    <p class="label reveal">slides-it  ·  aurora theme</p>
     <div class="accent-line reveal"></div>
-    <h1 class="title-reveal">Build slides that<br><span class="gradient-text">actually impress</span></h1>
+    <h1 class="title-reveal" style="max-width:1200px">Build slides that<br><span class="gradient-text">actually impress</span></h1>
     <div class="accent-line reveal" style="background: linear-gradient(90deg, var(--accent-2), transparent)"></div>
-    <p class="subtitle reveal">A stunning dark theme with animated aurora backgrounds — engineered for technical presentations, product demos, and conference talks.</p>
-    <p class="reveal" style="margin-top:32px; font-size:13px; color: var(--text-secondary)">2026 — slides-it</p>
+    <p class="subtitle reveal" style="max-width:900px;margin-top:8px">A stunning dark theme with animated aurora backgrounds — engineered for technical presentations, product demos, and conference talks. Every pixel designed for impact.</p>
+    <div style="display:flex;gap:32px;align-items:center;margin-top:48px" class="reveal">
+      <div class="accent-line-wide"></div>
+      <p style="font-size:13px; color:var(--text-secondary)">2026  —  slides-it</p>
+    </div>
   </div>
 </section>
 
@@ -477,27 +552,27 @@ h2 {
      SLIDE 2: Feature Cards (3-col)
      ============================== -->
 <section class="slide" data-index="1">
-  <div class="slide-canvas">
+  <div class="slide-canvas" style="justify-content:flex-start;padding-top:80px">
     <p class="label reveal">Core principles</p>
-    <h2 class="reveal" style="margin: 8px 0 24px">Three pillars of great slides</h2>
+    <h2 class="reveal" style="margin:8px 0 28px">Three pillars of great slides</h2>
     <div class="card-grid reveal">
       <div class="card">
         <i data-lucide="sparkles" class="card-icon"></i>
         <p class="card-label">Visual</p>
         <p class="card-title">Aurora Depth</p>
-        <p class="card-body">Layered backgrounds create atmosphere without overwhelming content.</p>
+        <p class="card-body">Layered backgrounds with aurora ribbons and noise textures create cinematic atmosphere. Content floats above translucent surfaces, drawing the eye naturally to what matters.</p>
       </div>
       <div class="card">
         <i data-lucide="wand-2" class="card-icon"></i>
         <p class="card-label">Motion</p>
         <p class="card-title">Glassmorphism</p>
-        <p class="card-body">Translucent cards with blur effects add modern depth to every layout.</p>
+        <p class="card-body">Translucent cards with backdrop-blur create modern depth layers. Hover interactions reveal glowing borders and lift effects that invite exploration without distraction.</p>
       </div>
       <div class="card">
         <i data-lucide="type" class="card-icon"></i>
         <p class="card-label">Typography</p>
         <p class="card-title">Clash + Satoshi</p>
-        <p class="card-body">Display headings pair with humanist body text for confident readability.</p>
+        <p class="card-body">Display headings in Clash Display pair with humanist Satoshi body text. The contrast creates confident readability across screen sizes and viewing distances.</p>
       </div>
     </div>
   </div>
@@ -510,42 +585,48 @@ h2 {
   <div class="slide-canvas">
     <p class="label reveal">By the numbers</p>
     <div class="accent-line reveal"></div>
+    <h2 class="reveal" style="margin-bottom:32px">Everything you need, nothing you don't</h2>
     <div class="stats-row reveal">
       <div class="stat-card">
         <div class="stat-number gradient-text" data-target="100" data-suffix="%">0%</div>
-        <div class="stat-label">Self-contained HTML</div>
+        <div class="stat-label">Self-contained</div>
+        <div class="stat-desc">Every slide deck is a single HTML file — no build tools, no CDN, no runtime dependencies</div>
       </div>
       <div class="stat-card">
         <div class="stat-number gradient-text" data-target="0">0</div>
-        <div class="stat-label">External dependencies</div>
+        <div class="stat-label">External deps</div>
+        <div class="stat-desc">Zero external JavaScript dependencies. Open the file in any browser, anywhere, anytime</div>
       </div>
       <div class="stat-card">
         <div class="stat-number gradient-text" data-target="6" data-suffix=" layouts">0 layouts</div>
         <div class="stat-label">Built-in variants</div>
+        <div class="stat-desc">Cards, stats, two-column, step flow, quote, and full-bleed — all production-ready</div>
       </div>
     </div>
-    <p class="reveal" style="margin-top:24px; font-size:16px; color:var(--text-secondary)">One HTML file. No build tools, no CDN, no runtime. Open it anywhere.</p>
   </div>
 </section>
 
 <!-- ==============================
-     SLIDE 4: Two-Column
+     SLIDE 4: Two-Column + Donut Chart
      ============================== -->
 <section class="slide" data-index="3">
-  <div class="slide-canvas">
+  <div class="slide-canvas" style="justify-content:flex-start;padding-top:80px">
+    <p class="label reveal" style="margin-bottom:20px">Key finding</p>
     <div class="two-col reveal">
       <div class="two-col-main">
-        <p class="label" style="margin-bottom:12px">Key finding</p>
         <h2>Glassmorphism elevates content hierarchy</h2>
         <p style="margin-top:16px">Translucent card surfaces with backdrop blur create natural depth layers, guiding the eye to the most important information without heavy borders or shadows.</p>
+        <p style="margin-top:16px">The aurora background visible through frosted glass creates a living, breathing canvas that adapts to every slide's content while maintaining visual cohesion.</p>
+        <div id="donutChart" style="width:320px;height:320px;margin-top:24px"></div>
       </div>
       <div>
         <div class="card">
           <p class="card-label">Evidence</p>
           <ul class="evidence-list">
-            <li>Backdrop blur separates content from background</li>
-            <li>Border glow draws attention on hover</li>
-            <li>Semi-transparent surfaces feel modern and light</li>
+            <li>Backdrop blur separates content from background organically</li>
+            <li>Border glow draws attention on hover interaction</li>
+            <li>Semi-transparent surfaces feel modern and weightless</li>
+            <li>Layered depth guides reading order without explicit markers</li>
           </ul>
         </div>
       </div>
@@ -559,32 +640,33 @@ h2 {
 <section class="slide" data-index="4">
   <div class="slide-canvas">
     <p class="label reveal">Process</p>
-    <h2 class="reveal" style="margin: 8px 0 32px">From idea to presentation</h2>
+    <h2 class="reveal" style="margin:8px 0 48px">From idea to presentation</h2>
     <div class="step-flow reveal">
       <div class="step">
         <div class="step-circle">1</div>
         <div class="step-title">Describe</div>
-        <div class="step-desc">Tell the AI your topic and audience</div>
+        <div class="step-desc">Tell the AI your topic, audience, and desired tone. Upload reference documents if you have them.</div>
       </div>
       <div class="step-connector"></div>
       <div class="step">
         <div class="step-circle">2</div>
-        <div class="step-title">Generate</div>
-        <div class="step-desc">AI creates a complete HTML deck</div>
+        <div class="step-title">Research</div>
+        <div class="step-desc">AI scans your workspace files, extracts key data, and supplements with its own knowledge base.</div>
       </div>
       <div class="step-connector"></div>
       <div class="step">
         <div class="step-circle">3</div>
-        <div class="step-title">Refine</div>
-        <div class="step-desc">Request changes in plain language</div>
+        <div class="step-title">Generate</div>
+        <div class="step-desc">A complete, self-contained HTML deck is created with all layouts, animations, and navigation built in.</div>
       </div>
       <div class="step-connector"></div>
       <div class="step">
         <div class="step-circle">4</div>
         <div class="step-title">Present</div>
-        <div class="step-desc">Open the file and go</div>
+        <div class="step-desc">Open the file in any browser. Keyboard navigation, touch support, and responsive scaling just work.</div>
       </div>
     </div>
+    <div class="accent-line-wide reveal" style="margin:48px auto 0;opacity:0.5"></div>
   </div>
 </section>
 
@@ -593,12 +675,21 @@ h2 {
      ============================== -->
 <section class="slide" data-index="5">
   <div class="slide-canvas">
-    <div class="quote-block reveal">
-      <blockquote>"The presentation is the argument. Make it undeniable."</blockquote>
-      <cite>slides-it aurora theme</cite>
+    <!-- Large decorative quotation mark -->
+    <div class="quote-deco" style="top:40px;left:40px;">"</div>
+    <!-- Decorative blob fills -->
+    <div class="deco-blob" style="width:350px;height:350px;background:rgba(34,211,238,0.05);bottom:-40px;right:60px;"></div>
+    <div class="deco-line" style="top:80px;right:80px;width:160px;height:1px;background:linear-gradient(90deg,transparent,var(--accent-2));opacity:0.2;"></div>
+
+    <div style="max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:40px;flex:1;justify-content:center">
+      <div class="quote-block reveal">
+        <blockquote>"The presentation is the argument. Make it undeniable."</blockquote>
+        <cite>slides-it aurora theme</cite>
+      </div>
+      <div class="accent-line reveal" style="width:120px"></div>
+      <p class="reveal" style="font-size:18px;color:var(--text-secondary);line-height:1.7;max-width:800px">Great design removes friction between your ideas and your audience's understanding. Every aurora gradient, every glass surface, every carefully timed animation serves one purpose — clarity.</p>
+      <div class="accent-line-wide reveal" style="opacity:0.3"></div>
     </div>
-    <div class="accent-line reveal" style="margin-top:32px"></div>
-    <p class="reveal" style="font-size:16px; color:var(--text-secondary); line-height:1.7">Great design removes friction between your ideas and your audience's understanding.</p>
   </div>
 </section>
 
@@ -606,12 +697,19 @@ h2 {
      SLIDE 7: Closing
      ============================== -->
 <section class="slide" data-index="6">
-  <div class="slide-canvas" style="text-align:center; align-items:center">
-    <div class="accent-line reveal" style="margin:0 auto 24px"></div>
-    <h1 class="title-reveal" style="font-size:56px">Thank <span class="gradient-text">You</span></h1>
-    <p class="subtitle reveal" style="margin-top:16px">Questions?</p>
-    <div class="accent-line reveal" style="margin:32px auto 0; background:linear-gradient(90deg,var(--accent-2),transparent)"></div>
-    <p class="label reveal" style="margin-top:32px">generated with slides-it + claude</p>
+  <div class="slide-canvas" style="text-align:center;align-items:center">
+    <!-- Decorative fills: centered blobs and accent lines -->
+    <div class="deco-blob" style="width:500px;height:500px;background:rgba(34,211,238,0.06);top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+    <div class="deco-blob" style="width:250px;height:250px;background:rgba(167,139,250,0.05);top:80px;right:120px;"></div>
+    <div class="deco-line" style="bottom:160px;left:50%;transform:translateX(-50%);width:400px;height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);"></div>
+    <div class="deco-line" style="top:160px;left:50%;transform:translateX(-50%);width:300px;height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);"></div>
+
+    <div class="accent-line reveal" style="margin:0 auto 32px"></div>
+    <h1 class="title-reveal" style="font-size:64px">Thank <span class="gradient-text">You</span></h1>
+    <p class="subtitle reveal" style="margin-top:24px;font-size:28px">Questions?</p>
+    <div class="accent-line reveal" style="margin:40px auto 0;background:linear-gradient(90deg,var(--accent-2),transparent)"></div>
+    <p class="reveal" style="margin-top:24px;font-size:16px;color:var(--text-secondary);max-width:600px">Your presentation is ready. Share the HTML file — it works everywhere, no software needed.</p>
+    <p class="label reveal" style="margin-top:48px">generated with slides-it + claude</p>
   </div>
 </section>
 
@@ -663,7 +761,7 @@ class SlidePresentation {
     this.setupMouseWheel();
   }
 
-  /* Scale 1920×1080 canvases to fit viewport */
+  /* Scale 1920x1080 canvases to fit viewport */
   setupScaling() {
     const canvases = document.querySelectorAll('.slide-canvas');
     const BASE_W = 1920, BASE_H = 1080;
@@ -760,6 +858,46 @@ class SlidePresentation {
 }
 
 new SlidePresentation();
+
+/* ===========================================
+   ECHARTS — Donut chart on Slide 4
+   =========================================== */
+if (typeof echarts !== 'undefined') {
+  const chartDom = document.getElementById('donutChart');
+  if (chartDom) {
+    const chart = echarts.init(chartDom, null, { renderer: 'canvas' });
+    chart.setOption({
+      tooltip: { show: false },
+      legend: {
+        bottom: 0,
+        textStyle: { color: '#94a3b8', fontSize: 14, fontFamily: 'Satoshi, sans-serif' },
+        itemWidth: 12, itemHeight: 12, itemGap: 20
+      },
+      series: [{
+        type: 'pie',
+        radius: ['55%', '80%'],
+        center: ['50%', '45%'],
+        avoidLabelOverlap: false,
+        itemStyle: { borderRadius: 6, borderColor: '#030712', borderWidth: 3 },
+        label: {
+          show: true, position: 'center',
+          formatter: '45%',
+          fontSize: 40, fontWeight: 700, color: '#f8fafc',
+          fontFamily: 'Clash Display, sans-serif'
+        },
+        emphasis: { scale: false },
+        labelLine: { show: false },
+        data: [
+          { value: 45, name: 'Layout',     itemStyle: { color: '#22d3ee' } },
+          { value: 30, name: 'Typography', itemStyle: { color: '#a78bfa' } },
+          { value: 25, name: 'Color',      itemStyle: { color: '#34d399' } }
+        ],
+        animationDuration: 800,
+        animationEasing: 'cubicOut'
+      }]
+    });
+  }
+}
 </script>
 </body>
 </html>
