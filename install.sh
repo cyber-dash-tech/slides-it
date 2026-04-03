@@ -6,7 +6,7 @@
 #
 # What this does:
 #   1. Detects your platform and architecture
-#   2. Checks that Node.js is installed (installs via fnm if not — required for web search)
+#   2. Checks that Node.js is installed (downloads official binary if not — required for web search)
 #   3. Installs open-websearch globally (npm install -g)
 #   4. Checks that opencode is installed (installs it if not)
 #   5. Downloads the matching slides-it binary from the latest GitHub Release
@@ -40,15 +40,24 @@ ARCH="$(uname -m)"
 case "$OS" in
     Darwin)
         case "$ARCH" in
-            arm64)  ARTIFACT="slides-it-macos-arm64" ;;
-            x86_64) ARTIFACT="slides-it-macos-x86_64" ;;
-            *)      die "Unsupported macOS architecture: $ARCH" ;;
+            arm64)
+                ARTIFACT="slides-it-macos-arm64"
+                NODE_ARCH="darwin-arm64"
+                ;;
+            x86_64)
+                ARTIFACT="slides-it-macos-x86_64"
+                NODE_ARCH="darwin-x64"
+                ;;
+            *)  die "Unsupported macOS architecture: $ARCH" ;;
         esac
         ;;
     Linux)
         case "$ARCH" in
-            x86_64) ARTIFACT="slides-it-linux-x86_64" ;;
-            *)      die "Unsupported Linux architecture: $ARCH (only x86_64 is supported)" ;;
+            x86_64)
+                ARTIFACT="slides-it-linux-x86_64"
+                NODE_ARCH="linux-x64"
+                ;;
+            *)  die "Unsupported Linux architecture: $ARCH (only x86_64 is supported)" ;;
         esac
         ;;
     *)
@@ -68,25 +77,50 @@ need curl
 # 3. Check / install Node.js (required for web search)
 # ---------------------------------------------------------------------------
 
+NODE_INSTALL_DIR="${HOME}/.local/node"
+
 if command -v node >/dev/null 2>&1; then
     ok "Node.js is already installed ($(node --version 2>/dev/null || echo 'version unknown'))"
 else
-    info "Node.js not found — installing via fnm (required for web search)..."
-    curl -fsSL https://fnm.vercel.app/install | bash
-    export PATH="${HOME}/.local/share/fnm:${PATH}"
-    eval "$(fnm env 2>/dev/null || true)"
-    fnm install --lts
-    if command -v node >/dev/null 2>&1; then
-        ok "Node.js installed via fnm ($(node --version 2>/dev/null))"
+    info "Node.js not found — downloading official binary (required for web search)..."
+
+    # Get latest LTS v22.x version number from nodejs.org directory listing
+    NODE_VER="$(curl -fsSL https://nodejs.org/dist/latest-v22.x/ \
+        | grep -oE 'node-v[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's/node-//')"
+
+    if [ -z "$NODE_VER" ]; then
+        warn "Could not determine Node.js version. Web search will be unavailable."
+        warn "Install Node.js manually: https://nodejs.org/"
     else
-        warn "Node.js installation may not be on PATH yet. Web search requires Node.js."
-        warn "Install manually: https://nodejs.org/"
+        NODE_TAR="node-${NODE_VER}-${NODE_ARCH}.tar.gz"
+        NODE_URL="https://nodejs.org/dist/${NODE_VER}/${NODE_TAR}"
+
+        info "Downloading Node.js ${NODE_VER} for ${NODE_ARCH}..."
+        NODE_TMP="$(mktemp)"
+        if curl -fsSL --progress-bar -o "$NODE_TMP" "$NODE_URL"; then
+            rm -rf "$NODE_INSTALL_DIR"
+            mkdir -p "$NODE_INSTALL_DIR"
+            tar -xzf "$NODE_TMP" -C "$NODE_INSTALL_DIR" --strip-components=1
+            rm -f "$NODE_TMP"
+
+            export PATH="${NODE_INSTALL_DIR}/bin:${PATH}"
+
+            if command -v node >/dev/null 2>&1; then
+                ok "Node.js $(node --version) installed to ${NODE_INSTALL_DIR}"
+            else
+                warn "Node.js extracted but not on PATH. Web search may not work."
+            fi
+        else
+            rm -f "$NODE_TMP"
+            warn "Node.js download failed. Web search will be unavailable."
+            warn "Install manually: https://nodejs.org/"
+        fi
     fi
 fi
 
-# Ensure fnm-managed Node.js is on PATH for the rest of this script
-if command -v fnm >/dev/null 2>&1; then
-    eval "$(fnm env 2>/dev/null || true)"
+# Ensure locally-installed Node.js is on PATH for the rest of this script
+if [ -d "${NODE_INSTALL_DIR}/bin" ]; then
+    export PATH="${NODE_INSTALL_DIR}/bin:${PATH}"
 fi
 
 # ---------------------------------------------------------------------------
@@ -180,19 +214,9 @@ ok "Installed: $DEST"
 echo ""
 printf '\033[1;32mslides-it %s installed successfully!\033[0m\n' "$LATEST_TAG"
 echo ""
-echo "  To make all tools permanently available in your shell, add these to your shell config:"
+echo "  To make all tools permanently available in your shell, run:"
 echo ""
-echo '    # slides-it + opencode'
-echo '    export PATH="$HOME/.local/bin:$HOME/.opencode/bin:$PATH"'
-echo ""
-echo '    # fnm (Node.js version manager, required for web search)'
-echo '    eval "$(fnm env 2>/dev/null || true)"'
-echo ""
-echo "  Quick setup (zsh):"
-echo ""
-echo '    echo '"'"'export PATH="$HOME/.local/bin:$HOME/.opencode/bin:$PATH"'"'"' >> ~/.zshrc'
-echo '    echo '"'"'eval "$(fnm env 2>/dev/null || true)"'"'"' >> ~/.zshrc'
-echo '    source ~/.zshrc'
+echo '    echo '"'"'export PATH="$HOME/.local/bin:$HOME/.local/node/bin:$HOME/.opencode/bin:$PATH"'"'"' >> ~/.zshrc && source ~/.zshrc'
 echo ""
 echo "  Then get started:"
 echo "    slides-it            # launch the web UI"
