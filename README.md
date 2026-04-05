@@ -3,7 +3,7 @@
 **Chat with AI. Get a presentation. One HTML file, ready to share.**
 
 <p align="center">
-  <a href="https://github.com/mengdigao1988/slides-it/releases"><img src="https://img.shields.io/github/v/release/mengdigao1988/slides-it?color=green&label=version" alt="version" /></a>
+  <a href="https://github.com/cyber-dash-tech/slides-it/releases"><img src="https://img.shields.io/github/v/release/cyber-dash-tech/slides-it?color=green&label=version" alt="version" /></a>
   <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license" />
   <img src="https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white" alt="Python" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
@@ -42,7 +42,7 @@ slides-it is a command-line tool. If a terminal isn't part of the daily routine,
 One command. The installer detects the platform, downloads the binary, and installs [OpenCode](https://opencode.ai) (the AI engine) automatically if it isn't already present.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mengdigao1988/slides-it/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cyber-dash-tech/slides-it/main/install.sh | bash
 ```
 
 After installation, run one more command to finish setup (only needed once — takes effect permanently, even after restarting the computer):
@@ -351,7 +351,7 @@ Industries can be installed via the API (`POST /api/industries/install`). Launch
 Requires [uv](https://docs.astral.sh/uv/) and Node.js 22+.
 
 ```bash
-git clone https://github.com/mengdigao1988/slides-it.git
+git clone https://github.com/cyber-dash-tech/slides-it.git
 cd slides-it
 
 # Backend — FastAPI on port 3000

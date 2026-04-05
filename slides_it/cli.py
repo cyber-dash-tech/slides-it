@@ -392,7 +392,7 @@ def upgrade() -> None:
     try:
         import httpx
         resp = httpx.get(
-            "https://api.github.com/repos/mengdigao1988/slides-it/releases/latest",
+            "https://api.github.com/repos/cyber-dash-tech/slides-it/releases/latest",
             follow_redirects=True,
             timeout=10,
         )
@@ -409,7 +409,7 @@ def upgrade() -> None:
 
     typer.echo(f"Upgrading slides-it {current} → {latest} ...")
     result = subprocess.run(
-        "curl -fsSL https://raw.githubusercontent.com/mengdigao1988/slides-it/main/install.sh | bash",
+        "curl -fsSL https://raw.githubusercontent.com/cyber-dash-tech/slides-it/main/install.sh | bash",
         shell=True,
     )
     if result.returncode != 0:

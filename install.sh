@@ -14,7 +14,7 @@
 
 set -euo pipefail
 
-REPO="mengdigao1988/slides-it"
+REPO="cyber-dash-tech/slides-it"
 INSTALL_DIR="${HOME}/.local/bin"
 
 # ---------------------------------------------------------------------------
