@@ -243,7 +243,7 @@ def _launch(
             start_new_session=True,
             stdout=log_handle,
             stderr=log_handle,
-            env={**os.environ, "SLIDES_IT_DAEMON_CHILD": "1"},
+            env={k: v for k, v in os.environ.items() if not k.startswith("_PYI_")} | {"SLIDES_IT_DAEMON_CHILD": "1"},
         )
         log_handle.close()
 
